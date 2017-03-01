@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The progress bar displayed during screen transitions.
+-->
+<mx:Panel 
+	xmlns:mx="http://www.adobe.com/2006/mxml"
+	backgroundColor="0x222222"
+	borderColor="0x222222">
+	
+	<mx:ProgressBar indeterminate="true" minimum="0" maximum="100" label="Normalizing hyperspace vectors..." color="white" />
+	
+</mx:Panel>

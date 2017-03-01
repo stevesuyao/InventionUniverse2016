@@ -1,0 +1,59 @@
+#upload-box
+{
+	width: 40%;
+	height: 60%;
+	background-color: grey;
+	margin-left: 30%;
+	margin-top: -45%;
+	opacity: .97;
+	border-radius: 50px;
+}
+#upload-title
+{
+	margin-top: 2%;
+	color: white;
+	font-size: 300%;
+}
+#upload-biography-title
+{
+	margin-top: 2%;
+	color: white;
+	font-size: 160%;
+	cursor: pointer;
+}
+#upload-biography-text
+{
+
+}
+#upload-summary-title
+{
+	margin-top: 2%;
+	color: white;
+	font-size: 160%;
+	cursor: pointer;
+}
+#upload-summary-text
+{
+	
+}
+#upload-projects-title
+{
+	margin-top: 2%;
+	color: white;
+	font-size: 160%;
+	cursor: pointer;
+}
+#upload-projects-text
+{
+
+}
+#upload-box-close
+{
+	margin-top: -6%;
+	margin-left: 90%;
+	color:white;
+	background-color: red;
+	width:6%;
+	border-radius: 50px;
+	cursor: pointer;
+}

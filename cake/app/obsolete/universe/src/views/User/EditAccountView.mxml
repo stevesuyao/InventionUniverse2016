@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The edit account detailed information pop-up window.
+-->
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml" 
+	title="Edit account"
+	layout="horizontal">
+	
+	<mx:Script>
+		<![CDATA[
+			import models.CelestialBody.PlanetVO;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.managers.PopUpManager;
+			import mx.controls.Alert;		
+		
+			/** Reference to main application object. */
+			private var universe:InventionUniverse;
+		
+			/** A copy of planet object being edited. Used to pass changed fields to the server for update. */
+			private var planet:PlanetVO;
+			
+			public function init(universe:InventionUniverse, planet:PlanetVO):void {
+				this.universe = universe;
+				
+				// We want a copy, not a reference, because in case submit() fails 
+				// we won't desync the client and server. 
+				this.planet = new PlanetVO(planet);
+				
+				// Need to call later because nested components may not have been 
+				// created yet. Alternatively, we could use data binding but that 
+				// generates warnings unless we set [Bindable] meta-tag to every 
+				// relevant field.
+				callLater(initLater);
+			}
+			
+			private function initLater():void {
+				// Fill out form with old data.
+				inputPlanetName.text  = planet.name;
+				inputEmail.text       = planet.email;
+				inputFirstName.text   = planet.first_name;
+				inputLastName.text    = planet.last_name;		
+				inputHometown.text    = planet.hometown;
+				inputSchool.text      = planet.school;
+				inputHobbies.text     = planet.hobbies;
+				inputQuotations.text  = planet.quotations;
+				inputHeroes.text      = planet.heroes;
+				inputInterests.text   = planet.interests;
+				inputGoals.text       = planet.goals;
+				
+				// Parse date.
+				if (planet.birth_date != null) {
+					var d:String = planet.birth_date;
+					var firstDash:int = d.indexOf("-");
+					var secondDash:int = d.indexOf("-", firstDash + 1);
+					
+					var D:Date = new Date(Number(d.substring(0, firstDash)),
+																Number(d.substring(firstDash + 1, secondDash)) - 1, // Months go from 0 to 11.
+																Number(d.substring(secondDash + 1)));
+					inputBirthdate.selectedDate = D;
+				}
+			}
+
+			/** Display the Planet image form. */
+			public function planet_image():void {
+				var planetImageForm:EditPlanetImageView;
+				planetImageForm = new EditPlanetImageView;
+				planetImageForm.init(this, planet);
+				
+				PopUpManager.addPopUp(planetImageForm, this, true);
+				PopUpManager.centerPopUp(planetImageForm);
+				
+				planetImageForm = null;
+			}
+			
+			/** Display the Avatar form. */
+			public function avatar():void {
+				var avatarForm:EditAvatarView;
+				avatarForm = new EditAvatarView;
+				avatarForm.init(this, planet);
+				
+				PopUpManager.addPopUp(avatarForm, this, true);
+				PopUpManager.centerPopUp(avatarForm);
+				
+				avatarForm = null;
+			}
+			
+			/** Submits the form. */
+			public function submit():void {
+				// Transfer data from form to object.
+				// Don't change planet name, which is immutable after creation.
+				planet.email      = inputEmail.text;
+				planet.first_name = inputFirstName.text;
+				planet.last_name  = inputLastName.text;
+				planet.hometown   = inputHometown.text;
+				planet.school     = inputSchool.text;			
+				planet.hobbies    = inputHobbies.text;
+				planet.quotations = inputQuotations.text;
+				planet.heroes     = inputHeroes.text;
+				planet.interests  = inputInterests.text;
+				planet.goals      = inputGoals.text;
+				
+				planet.avatar_url = universe.currentUser.avatar_url;
+				planet.image_url = universe.currentUser.image_url;	
+				
+				// Parse date.
+				if (inputBirthdate.selectedDate != null) {
+					var D:Date = inputBirthdate.selectedDate;
+					planet.birth_date = D.getFullYear() + "-" + D.getMonth() + "-" + D.getDate();	
+				}
+				
+				// Update by sending object over.
+				planetRemote.updatePlanet(planet);
+			}
+			
+			/** Handles PlanetService->update(). */
+			private function _updatePlanet(e:ResultEvent):void {		
+				var isSuccess:Boolean = e.result as Boolean;
+				
+				if (!isSuccess) {
+					Alert.show("Update failed!", "Invention Universe > Error");
+					return;
+				}
+				
+				Alert.show("Update successful!", "Invention Universe > Edit Account");
+				
+				// Update the main application's user object.
+				universe.currentUser = planet;
+			}
+			
+			/** Handles PlanetService->changePassword(). */
+			private function _changePassword(e:ResultEvent):void {
+				var isSuccess:Boolean = e.result as Boolean;
+				
+				if (!isSuccess) {
+					Alert.show("Password change failed!\n\nPlease make sure your old password is correct.", "Invention Universe > Change Password");
+					return;
+				}
+				
+				Alert.show("Password change successful!", "Invention Universe > Change Password");
+				
+				// Clear password input fields.
+				inputOldPassword.text = "";
+				inputNewPassword.text = "";
+			}
+			
+			/** Closes this pop-up window. */
+			private function close():void {
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- COMPONENTS -->
+	<mx:Form>
+		<mx:FormHeading label="Edit account information" />
+	
+		<mx:FormItem label="Planet name">
+			<mx:TextInput id="inputPlanetName" enabled="false" />
+		</mx:FormItem>		
+		<mx:FormItem label="Old password">
+			<mx:TextInput id="inputOldPassword" displayAsPassword="true" />
+		</mx:FormItem>	
+		<mx:FormItem label="New password">
+			<mx:TextInput id="inputNewPassword" displayAsPassword="true" />
+			<mx:Button label="Change password" 
+				click="planetRemote.changePassword(planet.name, inputOldPassword.text, inputNewPassword.text)" />
+		</mx:FormItem>
+		
+		<mx:HRule width="100%" height="1"/>
+		
+		<mx:FormItem label="E-mail address" required="true">
+			<mx:TextInput id="inputEmail" />
+		</mx:FormItem>
+		<mx:FormItem label="First name" required="true">
+			<mx:TextInput id="inputFirstName" />
+		</mx:FormItem>
+		<mx:FormItem label="Last name" required="true">
+			<mx:TextInput id="inputLastName" />
+		</mx:FormItem>
+		<mx:FormItem label="Birthdate">
+			<!-- 
+			TODO: Pretty cumbersome mechanism to enter a birthdate since it doesn't allow easy editing of year.
+			-->
+			<mx:DateField id="inputBirthdate" />
+		</mx:FormItem>
+		<mx:FormItem label="Hometown">
+			<mx:TextInput id="inputHometown" />
+		</mx:FormItem>		
+	</mx:Form>
+	
+	<mx:Form>
+		<mx:FormItem label="School">
+			<mx:TextInput id="inputSchool" />
+		</mx:FormItem>
+		<mx:FormItem label="Hobbies">
+			<mx:TextInput id="inputHobbies" />
+		</mx:FormItem>
+		<mx:FormItem label="Quotations">
+			<mx:TextArea id="inputQuotations" height="60" />
+		</mx:FormItem>
+		<mx:FormItem label="Heroes">
+			<mx:TextInput id="inputHeroes" />
+		</mx:FormItem>
+		<mx:FormItem label="Interests">
+			<mx:TextInput id="inputInterests" />
+		</mx:FormItem>
+		<mx:FormItem label="Goals">
+			<mx:TextArea id="inputGoals" height="80" />
+		</mx:FormItem>					
+	</mx:Form>
+	
+	<mx:ControlBar width="100%">
+		<mx:Spacer width="100%" />
+		<mx:Button label="Edit Planet Image" click="planet_image();" />		
+		<mx:Button label="Edit Avatar" click="avatar();" />
+		<mx:Button label="Save Details" click="submit();" />
+		<mx:Button label="Return" click="close();" />
+	</mx:ControlBar>
+	
+	<!-- REMOTE OBJECTS -->
+	<mx:RemoteObject id="planetRemote" destination="zend" source="PlanetService" fault="InventionUniverse.remoteFaultListener(event)" showBusyCursor="true">
+		<mx:method name="updatePlanet" result="_updatePlanet(event)" />
+		<mx:method name="changePassword" result="_changePassword(event)" />
+	</mx:RemoteObject>
+</mx:Panel>

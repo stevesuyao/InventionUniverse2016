@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The upload pop-up when the "Upload" control panel button is clicked.
+-->
+<mx:TitleWindow 
+	xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="250"
+	title="Upload!"
+	showCloseButton="true"
+	creationComplete="Application.application.toggleTimer(false);"
+	close="close();">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import views.User.EditAccountView;
+			import views.User.EditSkillView;
+			import views.User.EditProjectView;
+			import views.User.EditResumeView;
+			import mx.managers.PopUpManager;
+			import mx.events.CloseEvent;
+			
+			private var universe:InventionUniverse;
+		
+			public function init(universe:InventionUniverse):void {
+				this.universe = universe;
+			}
+			
+			/** Opens edit account window for current user as a pop-up. */
+			private function openEditAccount():void {
+				// Redirect to login prompt if lacking credentials.
+				if (universe.currentUser == null) {
+					universe.openLogin(); 
+					return;
+				}
+				
+				var accountView:EditAccountView = new EditAccountView();
+				accountView.init(universe, universe.currentUser);
+				
+				PopUpManager.addPopUp(accountView, this, true);
+				PopUpManager.centerPopUp(accountView);
+			}
+			
+			/** Open edit skills window for current user as a pop-up. */
+			private function openEditSkills():void {
+				// Redirect to login prompt if lacking credentials.
+				if (universe.currentUser == null) {
+					universe.openLogin();
+					return;
+				}
+				
+				var skillsView:EditSkillView = new EditSkillView();
+				skillsView.init(universe.currentUser);
+				
+				PopUpManager.addPopUp(skillsView, this, true);
+				PopUpManager.centerPopUp(skillsView);				
+			}
+			
+			/** Opens edit projects window for current user as a pop-up. */
+			private function openEditProjects():void {
+				// Redirect to login prompt if lacking credentials.
+				if (universe.currentUser == null) {
+					universe.openLogin(); 
+					return;
+				}
+				
+				var projectsView:EditProjectView = new EditProjectView();
+				projectsView.init(universe.currentUser);
+				
+				PopUpManager.addPopUp(projectsView, this, true);
+				PopUpManager.centerPopUp(projectsView);
+			}
+			
+			/** Opens edit projects window for current user as a pop-up. */
+			private function openEditResume():void {
+				// Redirect to login prompt if lacking credentials.
+				if (universe.currentUser == null) {
+					universe.openLogin(); 
+					return;
+				}
+				
+				var resumeView:EditResumeView = new EditResumeView();
+				resumeView.init(universe.currentUser);
+				
+				PopUpManager.addPopUp(resumeView, this, true);
+				PopUpManager.centerPopUp(resumeView);
+			}
+			
+			/** Closes this pop-up window. */
+			private function close():void {
+				PopUpManager.removePopUp(this);
+				
+				Application.application.toggleTimer(true);
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Button label="Edit account" click="openEditAccount();" width="100%" height="25" />
+	<mx:Button label="Edit skills" click="openEditSkills();" width="100%" height="25" />
+	<mx:Button label="Edit projects" click="openEditProjects();" width="100%" height="25" />
+	<mx:Button label="Edit resume" click="openEditResume();" width="100%" height="25" />
+	
+</mx:TitleWindow>

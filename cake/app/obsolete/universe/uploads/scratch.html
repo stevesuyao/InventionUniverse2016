@@ -1,0 +1,17 @@
+<html>
+<head>
+</head>
+<body>
+<script language="JavaScript">
+function put_applet(project_location)
+{
+	document.write('<applet id="ProjectApplet" style="display:block" codebase="./" code="ScratchApplet" archive="ScratchApplet.jar" height="640" width="480"><param name="project" value="'+project_location+'"><h3>Your browser needs java to view projects. Click <a href="http://java.com/getjava/index.jsp">here</a> to install Java.</h3></applet>');
+}
+var id=location.href.split("?",2)[1];
+var loc=id+".sb";
+document.write("<a href=\""+loc+"\">Click here to download this scratch project file.</a>");
+put_applet(loc);
+</script>
+
+</body>
+</html>

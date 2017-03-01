@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	A helper pop-up for EditProjectView.mxml.
+-->
+<mx:Panel 
+	xmlns:mx="http://www.adobe.com/2006/mxml" 
+	layout="horizontal"
+	title="Manage projects"
+	width="400">
+	
+	<mx:Script>
+		<![CDATA[
+			import models.Project.ProjectVO;
+			import models.Project.ProjectTypeVO;
+			import mx.collections.ArrayCollection;
+			import mx.rpc.events.ResultEvent;
+			import mx.managers.PopUpManager;
+			import mx.controls.Alert;
+			import flash.net.FileReference;
+			import mx.validators.StringValidator;
+			import mx.events.ValidationResultEvent;
+			
+			/** The default selection of the project type ComboBox, if any. */
+			public var comboDefaultIndex:int = -1;
+			
+			/** Reference to project manager that launched this window. */
+			private var manager:EditProjectView;
+			
+			/** For file browsing and loading. */
+			private var fileRef:FileReference;
+			
+			/** Extension filters for file browser. */
+			private var fileFilters:Array; /* of FileFilter */
+			
+			/** Binary data of the selected project file to be uploaded. */
+			private var fileData:ByteArray;
+			
+			/** Do we force the user to select a file to upload? */
+			private var isForceFileSelection:Boolean;
+		
+			/** Project type ID for future selection of the correct extension. */
+			private var projectType:ProjectTypeVO;
+		
+			public function init(manager:EditProjectView, isForceFileSelection:Boolean = true):void {
+				this.manager = manager;
+				
+				projectTypeRemote.getAllProjectTypes();
+				
+				fileRef = new FileReference();
+				fileRef.addEventListener(Event.SELECT, _selectUpload);
+				fileRef.addEventListener(Event.COMPLETE, _completeUpload);
+				
+				this.isForceFileSelection = isForceFileSelection;
+			}
+			
+			/** Executes when a user selects a file in the browse window. */
+			private function _selectUpload(e:Event):void {
+				// Limit file size.
+				if (fileRef.size > ProjectVO.MAX_PROJECT_SIZE) {
+					Alert.show("The selected file is too big!", "Invention Universe > Error");
+					return;
+				}
+				
+				fileRef.load();
+				
+				// Disable submit until file is loaded.
+				btnSubmit.enabled = false;
+			}
+			
+			/** Executes when FileReference is done loading. */
+			private function _completeUpload(e:Event):void {
+				// Show name of selected file in disabled text field.
+				inputURL.text = fileRef.name;
+				
+				// Extract loaded file as a byte array.
+				fileData = new ByteArray;
+				fileRef.data.readBytes(fileData, 0, fileRef.data.length);
+				
+				// Re-enable submit.
+				btnSubmit.enabled = true;
+				
+				// Show file type.
+				var ext:String = fileRef.name.substring(fileRef.name.indexOf('.')+1).toLocaleLowerCase();
+				projectTypeRemote.getProjectTypeByExtension(ext);
+			}
+			
+			/** Pass form data to project manager and clear fields. */
+			private function submit():void {
+				var valResult:ValidationResultEvent;
+
+				// Project name.
+				valResult = valProjectName.validate(inputProjectName.text);
+				if (valResult.type == ValidationResultEvent.INVALID)
+					return;
+				
+				// Project description.
+				valResult = valDescription.validate(inputDescription.text);
+				if (valResult.type == ValidationResultEvent.INVALID)
+					return;
+				
+				// Validate file, if we want to.
+				if (isForceFileSelection) {
+					if (fileData == null) {
+						Alert.show("Please select a file to upload.", "Invention Universe > New Project");
+						return;
+					}
+				}
+				
+				manager.submit(
+					inputProjectName.text, 
+					projectType.id, 
+					inputDescription.text, 
+					fileData
+					);
+			}
+			
+			/** Handles projectTypeRemote->getAllProjectTypes(). */
+			private function _getAllProjectTypes(e:ResultEvent):void {
+				var T:Array = e.result as Array; /* of ProjectTypeVO */
+
+				if (T == null) {
+					Alert.show(InventionUniverse.NULL_RETURN_ERROR, "Invention Universe > Error");
+					return;
+				}
+				
+				// Create extension filters for file browser from project types.
+				var extensions:String = "";
+				for each (var t:ProjectTypeVO in T) {
+					extensions += "*." + t.extension + ";"
+				}
+				fileFilters = [new FileFilter("Project Files", extensions)];				
+			}
+
+			/** Handels projectTypeRemote->getProjectTypeByExtension(). */
+			private function _getProjectTypeByExtension(e:ResultEvent):void {
+				if (e.result == null) {
+					Alert.show(InventionUniverse.NULL_RETURN_ERROR,"Error");
+					trace("_getProjectTypeByExtension(event) gets null");
+					return;
+				}
+	 			projectType = ProjectTypeVO(e.result);
+	 			labelType.text = projectType.name;
+			}
+			
+			/** Closes this pop-up window. */
+			private function close():void {
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- VALIDATORS -->
+	<mx:StringValidator id="valProjectName" required="true" source="{inputProjectName}" property="text" />
+	<mx:StringValidator id="valDescription" required="true" source="{inputDescription}" property="text" />
+	
+	<!-- COMPONENTS -->
+	<mx:Form width="100%">
+		<mx:FormHeading id="formHeading" />
+		<mx:FormItem label="Name" width="100%">
+			<mx:TextInput id="inputProjectName" width="100%" />
+		</mx:FormItem>
+		<mx:FormItem label="Description" width="100%">
+			<mx:TextArea id="inputDescription" width="100%" height="100" />
+		</mx:FormItem>
+		<mx:FormItem label="URL" width="100%">
+			<mx:TextInput id="inputURL" width="100%" enabled="false" />
+			<mx:Button label="Upload a file!" click="fileRef.browse(fileFilters);" />
+		</mx:FormItem>
+		<mx:HRule width="100%" />
+		<mx:FormItem>
+			<mx:Button id="btnSubmit" label="Submit" click="submit();" />
+		</mx:FormItem>
+		<mx:FormItem label="Type" width="100%">
+			<!--mx:ComboBox id="comboType" labelField="name" width="100%" editable="false" visible="false"/-->
+			<mx:Label id="labelType" text=""/>
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:ControlBar width="100%">
+		<mx:Spacer width="100%" />
+		<mx:Button label="Cancel" click="close();" />
+	</mx:ControlBar>
+	
+	<!-- REMOTE OBJECTS -->
+	<mx:RemoteObject id="projectTypeRemote" destination="zend" source="ProjectTypeService" fault="InventionUniverse.remoteFaultListener(event)" showBusyCursor="true">
+		<mx:method name="getAllProjectTypes" result="_getAllProjectTypes(event)" />
+		<mx:method name="getProjectTypeByExtension" result="_getProjectTypeByExtension(event)"/>
+	</mx:RemoteObject>
+	
+</mx:Panel>

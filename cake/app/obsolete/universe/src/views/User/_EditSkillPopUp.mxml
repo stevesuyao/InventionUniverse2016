@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	A helper pop-up for EditSkillView.mxml.
+-->
+<mx:Panel
+	xmlns:mx="http://www.adobe.com/2006/mxml"
+	layout="horizontal"
+	width="400"
+	title="Edit skill">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.utils.StringUtil;
+			import mx.controls.Alert;
+			import mx.collections.ArrayCollection;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.events.FaultEvent;
+			import models.Skill.SkillVO;
+			import models.Skill.SkillLevelVO;
+			import models.Skill.SkillTypeVO;
+			import mx.managers.PopUpManager;
+			
+			/** Type and Level data. Should be initialized at least once. */
+			static private var levelItems:Array;
+			static private var typeItems:Array;
+			
+			/** Reference to parent window. */
+			private var manager:EditSkillView;
+			
+			/** Reference to the skill being edited. */
+			private var skill:SkillVO;
+		
+			public function init(manager:EditSkillView, skill:SkillVO = null):void {
+				if ( !levelItems ) {
+					skillRemote.getAllSkillLevels();
+				}			
+				
+				if ( !typeItems ) {
+					skillRemote.getAllSkillTypes();
+				}
+				
+				this.skill = skill;
+				this.manager = manager;
+				
+				callLater(this.initView);
+			}
+			
+			/** Inititialize the view. */
+			private function initView():void {
+				if ( !(levelItems && typeItems) ) {
+					callLater(this.initView);
+					return;
+				}
+				
+				formSkillLevel.dataProvider = new ArrayCollection(levelItems);
+				formSkillType.dataProvider = new ArrayCollection(typeItems);
+
+				if (skill) {
+					formHeading.label = "Edit an existing skill";
+					
+					// When editing a skill, make the form display the skill.
+					var i:int;
+					for (i=0; i<levelItems.length; i++) {
+						if ( SkillLevelVO(levelItems[i]).id == skill.level_id ) {
+							formSkillLevel.selectedIndex = i;
+							break;
+						}
+					}
+					
+					for (i=0; i<typeItems.length; i++) {
+						if ( SkillTypeVO(typeItems[i]).id == skill.type_id ) {
+							formSkillType.selectedIndex = i;
+							break;
+						}
+					}
+										
+					inputSkillName.text = skill.name;
+				} else {
+					formHeading.label = "Add a new skill";
+				}
+			}
+			
+			/** Edit an existing skill in database. */
+			private function editSkill():void {
+				var newSkill:SkillVO = new SkillVO();
+				newSkill.id          = skill.id;
+				newSkill.parent_id   = skill.parent_id;
+				newSkill.name        = inputSkillName.text;
+				newSkill.type_id     = SkillTypeVO(formSkillType.selectedItem).id;
+				newSkill.level_id    = SkillLevelVO(formSkillLevel.selectedItem).id;
+				
+				skillRemote.editSkill(newSkill);
+			}
+			
+			/** Add a new skill into database. */
+			private function addSkill():void {
+				var newSkill:SkillVO = new SkillVO();
+				newSkill.parent_id   = manager.getPlanetID();
+				newSkill.name        = inputSkillName.text;
+				newSkill.type_id     = SkillTypeVO(formSkillType.selectedItem).id;
+				newSkill.level_id    = SkillLevelVO(formSkillLevel.selectedItem).id;
+				
+				skillRemote.addSkill(newSkill);
+			}
+			
+			/** When OK is pressed. */
+			private function ok():void {
+				inputSkillName.text = StringUtil.trim(inputSkillName.text);
+				
+				if (inputSkillName.text.length < 1) {
+					Alert.show("Please enter a name for this skill.", "Invention Universe > Error");
+					return;
+				}
+				
+				// Edit or Add?
+				if ( skill ) {
+					editSkill();
+				} else {
+					addSkill();					
+				}
+			}
+			
+			/** Close this pop-up window. */		
+			private function close():void {
+				PopUpManager.removePopUp(this);
+			}
+			
+			/** Handles skillRemote.addSkill() and skillRemote.editSkill(). */
+			private function _addSkill(e:ResultEvent):void {
+				var result:Boolean = e.result as Boolean;		
+				
+				if (!result) {
+					Alert.show("Sorry, something went wrong.\n\nPlease try again.", "Invention Universe > Error");
+					return;
+				}
+				
+				Alert.show("Operation completed.", "Invention Universe > Add Skill");
+				
+				// Update parent view.
+				manager.updateList();
+				
+				close();
+			}
+			
+			/** Handles skillRemote.getAllSkillLevels(). */
+			private function _getAllSkillLevels(e:ResultEvent):void {
+				levelItems = e.result as Array;
+			}
+			
+			/** Handles skillRemote.getAllSkillTypes(). */
+			private function _getAllSkillTypes(e:ResultEvent):void {
+				typeItems = e.result as Array;
+			}
+			
+			/** Fault listener for remote objects */
+			public static function faultListener(e:FaultEvent):void {
+				trace( e.message );
+			}
+		]]>
+	</mx:Script>
+
+	<!-- COMPONENTS -->
+	<mx:Form width="100%">
+		<mx:FormHeading id="formHeading" width="186"/>
+		<mx:FormItem label="Type" width="100%">
+			<mx:ComboBox id="formSkillType" labelField="name" width="100%" />
+		</mx:FormItem>
+		<mx:FormItem label="Name" width="100%">
+			<mx:TextInput id="inputSkillName" width="100%" maxChars="255" />
+		</mx:FormItem>
+		<mx:FormItem label="Level" width="100%">
+			<mx:ComboBox id="formSkillLevel" labelField="name" width="100%" />
+		</mx:FormItem>
+	</mx:Form>
+
+	<mx:ControlBar width="100%" horizontalAlign="right">
+		<mx:Button label="OK" click="ok();" />
+		<mx:Button label="Cancel" click="close();" />
+	</mx:ControlBar>
+	
+	<!-- REMOTE OBJECTS -->
+	<mx:RemoteObject id="skillRemote" destination="zend" source="SkillService" fault="faultListener(event);">
+		<mx:method name="editSkill" result="_addSkill(event);" />
+		<mx:method name="addSkill" result="_addSkill(event);" />
+		<mx:method name="getAllSkillLevels" result="_getAllSkillLevels(event);" />
+		<mx:method name="getAllSkillTypes" result="_getAllSkillTypes(event);" />
+	</mx:RemoteObject>
+</mx:Panel>

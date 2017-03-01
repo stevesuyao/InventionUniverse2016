@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The welcome splash screen on application load.
+-->
+<mx:Canvas
+	xmlns:mx="http://www.adobe.com/2006/mxml"
+	width="1843.45" height="306.6"
+  backgroundImage="{Assets.getInstance().welcome_base}"
+	dropShadowEnabled="false"
+  creationComplete="init()">
+
+	<mx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import assets.Assets;
+			import models.CelestialBody.PlanetVO;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			import mx.controls.Alert;
+			import mx.effects.easing.Back;
+			
+			private static const OFFSET_X:Number = -38-893.45;
+			private static const OFFSET_Y:Number = 152.2;
+			
+			private var logInPlanet:PlanetVO;
+			private var isTryIt:Boolean = false;
+			private var isRegister:Boolean = false;
+			
+			private function init():void{
+				Application.application.toggleTimer(false);
+			}
+			
+			/** Starts Invention Universe in "try it" mode. */
+			private function tryIt():void {
+				isTryIt = true;
+				
+				slide.play([this]);
+			}
+			
+			/** Starts registration process for new users. */
+			private function register():void {
+				isRegister = true;
+				
+				slide.play([this]);	
+			}
+
+			/** Submits user credentials for log in. */
+			private function logIn():void {
+				// Avoid multiple submissions.
+				if (!btnLogIn.enabled) {
+					return;
+				}
+				
+				btnLogIn.enabled = false;
+				
+				planetRemote.logIn(inputPlanetName.text, inputPassword.text);
+			}
+			
+			/** Handles PlanetService->logIn(). */
+			private function _logIn(e:ResultEvent):void {
+				logInPlanet = e.result as PlanetVO;
+				
+				if (logInPlanet == null) {
+					Alert.show("Please check that the planet name and password are typed correctly.", "Invention Universe > Log In");
+
+					btnLogIn.enabled = true;
+					
+					return;
+				}			
+				
+				slide.play([this]);
+			}
+			
+			/** Closes this pop-up window and performs action according to button press (i.e. "Test ride", "Login", etc.). */
+			private function close():void {
+				PopUpManager.removePopUp(this);
+				
+				if (logInPlanet != null) {
+					Application.application.finishLogin(logInPlanet, true);
+					
+					Alert.show("Successfully logged in!", "'Invention Universe > Log In");
+				} else if (isTryIt) {
+					Alert.show("As a guest explorer, you can browse the universe's galaxies and planets.\n\n" + 
+							"To post your own projects and graphics, you'll need to create your own planet first!", "Invention Universe > Try it!");
+					
+					Application.application.loadDefaultView();
+				} else if (isRegister) {
+					Application.application.startRegistration();			
+				}
+				
+				Application.application.toggleTimer(true);
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- FIELD VALIDATORS -->
+	<mx:StringValidator id="valPlanetName" required="true" source="{inputPlanetName}" property="text" />
+	<mx:StringValidator id="valPassword" required="true" source="{inputPassword}" property="text" />
+	
+	<!-- COMPONENTS -->
+	<mx:Image
+		width="197.8" height="29.0"
+		x="{428.3 - OFFSET_X}" y="{324.2 - OFFSET_Y}"
+		source="{Assets.getInstance().welcome_biy}"
+		click="navigateToURL(new URLRequest('http://www.build-it-yourself.com'), '_blank');" />
+	
+	<mx:TextInput id="inputPlanetName"
+		width="140.9" height="27.8"
+		x="{447.3 - OFFSET_X}" y="{246.5 - OFFSET_Y}"
+		backgroundColor="#5798BF"
+		borderStyle="none"
+		focusAlpha="0.0"
+		shadowDistance="0"
+		paddingTop="5"
+		paddingLeft="5"
+	  backgroundImage="{Assets.getInstance().welcome_form}" />
+		
+	<mx:TextInput id="inputPassword"
+		width="140.9" height="27.8"
+		x="{447.3 - OFFSET_X}" y="{280.5 - OFFSET_Y}"
+		displayAsPassword="true"
+		backgroundColor="#5798BF"
+		borderStyle="none"
+		focusAlpha="0.0"
+		shadowDistance="0"
+		paddingTop="5"
+		paddingLeft="5"
+		backgroundImage="{Assets.getInstance().welcome_form}"
+	  enter="logIn();" />
+	
+	<mx:Image id="btnLogIn"
+		width="109.8" height="66.2"
+		x="{608.9 - OFFSET_X}" y="{246.8 - OFFSET_Y}"
+		source="{Assets.getInstance().welcome_login}"
+		click="logIn();" />
+		
+	<mx:Image
+		width="148.7" height="53.8"
+		x="{289.4 - OFFSET_X}" y="{183.8 - OFFSET_Y}"
+		source="{Assets.getInstance().welcome_signup}"
+		click="register();" />
+	
+	<mx:Image
+		width="158.9" height="52.7"
+		x="{435.4 - OFFSET_X}" y="{179.7 - OFFSET_Y}"
+		source="{Assets.getInstance().welcome_testride}"
+		click="tryIt();" />
+	
+	<mx:Image
+		width="152.7" height="52.4"
+		x="{597.6 - OFFSET_X}" y="{183.0 - OFFSET_Y}"
+		source="{Assets.getInstance().welcome_mission}" />
+
+	<mx:Image
+		width="516.8" height="50.0"
+		x="{256.5 - OFFSET_X}" y="{392.4 - OFFSET_Y}"
+		source="{Assets.getInstance().welcome_news}" />	
+	
+	<!-- EFFECTS -->
+	<mx:Move id="slide" xFrom="{x}" xTo="{-width}" easingFunction="{Back.easeIn}" effectEnd="close();" />
+	
+	<!-- REMOTE OBJECTS -->
+	<mx:RemoteObject id="planetRemote" destination="zend" source="PlanetService" fault="InventionUniverse.remoteFaultListener(event)" showBusyCursor="true">
+		<mx:method name="logIn" result="_logIn(event)" />
+	</mx:RemoteObject>
+		
+</mx:Canvas>

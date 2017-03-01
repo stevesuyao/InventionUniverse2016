@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<form id='login' method="post">
+<div class = 'form-group'>
+  User name:<br>
+  <input type="text" name="username" id='username' >
+  <div class='messages'></div>
+  <br>
+</div>
+<div class='form-group'>
+  Password:<br>
+  <input type="password" name="password" id="password">
+  <div class='messages'></div>
+  <br><br>
+</div>
+  <input type="submit" id='btn_login' value="login">
+</form> 
+<br><br>
+<form id='signup' method="post">
+  User name:<br>
+  <input type="text" name="username" id='re_username' >
+  <br>
+  Password:<br>
+  <input type="password" name="password" id="re_password">
+  <br>
+  confirm Password:<br>
+  <input type="password" name="password" id="co_password">
+  <br><br>
+  <input type="submit" id='btn_signup' value="Signup">
+</form> 
+<br><br>
+
+<input type="submit" id='btn_logout' value="Logout">
+
+<br><br>
+<input type="submit" id='btn_quadrant' value="getQuadrants">
+
+<br><br>
+
+<input type="submit" id='btn_galaxy' value="getGalaxies">
+
+<br><br>
+
+<input type="submit" id='btn_system' value="getSystemByGalaxyId">
+
+<br><br>
+
+<input type="submit" id='btn_systems' value="getAllSystems">
+<br><br>
+
+<input type="submit" id='btn_planets' value="getPlanetsBySystemId">
+<br><br>
+
+<input type="submit" id='btn_addPlanet' value="addPlanet">
+<br><br>
+<form  id="PlanetAddForm" enctype="multipart/form-data" method="post" accept-charset="utf-8">
+ <div style="display:none;"><input type="hidden" name="_method" value="POST"></div>
+ <fieldset>
+       <legend>Add Planet</legend>
+      <div class="input text"><label for="PlanetName">Name</label>
+      <input  maxlength="32" type="text" value="test" name="data[Planet][name]" id="PlanetName"></div>    
+      <div class="input file"><label for="PlanetPhoto">Photo</label>
+      <input type="file" id="PlanetPhoto" name="data[Planet][photo]"></div>    
+      <input type="hidden" name="data[Planet][image_url]" value="" id="PlanetImageUrl">    
+    </fieldset>
+  <div class="submit" id="form-submit"><input type="submit" value="Submit"></div>
+</form>
+<br><br>
+
+<form  id="planetform" enctype="multipart/form-data" method="post" accept-charset="utf-8">
+ <div style="display:none;"><input type="hidden" name="_method" value="POST"></div>
+ <fieldset>
+       <legend>Edit Planet</legend>
+      <div class="input text"><label for="planetName">Name</label>
+      <input  maxlength="32" type="text" name="data[Planet][name]" id="planetName"></div>
+      <div class="input text">
+      <label for="planetDes">Description</label>
+      <textarea maxlength="225" type="textarea" name="data[Planet][description]" id="planetDes"></textarea></div>    
+      <div class="input file"><label for="planetPhoto">PlanetPhoto</label>
+      <input type="file" id="planetPhoto" name="data[Planet][photo]"></div>    
+      <!-- <input type="hidden" name="data[Planet][image_url]" value="" id="planetImageUrl">    --> 
+    </fieldset>
+  <div class="submit" id="planetform-submit"><input type="submit" value="Submit"></div>
+</form>
+<br><br>
+
+<form  id="profileform" enctype="multipart/form-data" method="post" accept-charset="utf-8">
+ <div style="display:none;"><input type="hidden" name="_method" value="POST"></div>
+ <fieldset>
+       <legend>Edit Profile</legend>
+      <div class="input text"><label for="Name">Name</label>
+      <input  maxlength="32" type="text" name="data[Profile][name]" id="ProfileName"></div>    
+      <div class="input file"><label for="avatarPhoto">Avatar</label>
+      <input type="file" id="avatarPhoto" name="data[Profile][photo]"></div>    
+      <input type="hidden" name="data[Profile][avatar_url]" value="" id="avatarImageUrl">    
+    </fieldset>
+  <div class="submit" id="pform-submit"><input type="submit" value="Submit"></div>
+</form>
+
+<br><br>
+<form  id="skillform" enctype="multipart/form-data" method="post" accept-charset="utf-8">
+ <div style="display:none;"><input type="hidden" name="_method" value="POST"></div>
+ <fieldset>
+       <legend>Add Skill</legend>
+      <div class="input text"><label for="type">Type</label>
+      <input  maxlength="32" type="text" name="data[Skill][type]" id="skilltype"></div>   
+      <div class="input text"><label for="name">Name</label> 
+      <input type="text" id="skillname" name="data[Skill][name]"></div>  
+      <div class="input text"><label for="level">Level</label>   
+      <input type="text" name="data[Skill][level]" id="skilllevel"></div>  
+    </fieldset>
+  <input type="hidden" name="data[Skill][planet_id]" id='skill-p-id' value='1'>
+  <div class="submit" id="skill-submit"><input type="submit" value="Submit"></div>
+</form>
+
+<br><br>
+<input type="submit" id='btn_deleteSkill' value="deleteSkill">
+<br><br>
+<form  id="Videoform" enctype="multipart/form-data" method="post" accept-charset="utf-8">
+ <div style="display:none;"><input type="hidden" name="_method" value="POST"></div>
+ <fieldset>
+       <legend>Add Project</legend>
+      <div class="input text"><label for="type">Youtube Link</label>
+      <input  maxlength="64" type="text" name="data[Video][youtube_url]" id="videolink"></div>   
+      <div class="input file"><label for="projectPhoto">projectPhoto</label>
+      <input type="file" id="projectPhoto" name="data[Video][photo]"></div>  
+      <div class="input file"><label for="projectPDF">projectPDF</label>
+      <input type="file" id="projectPDF" name="data[Video][pdf]"></div> 
+      <div class="input file"><label for="projectPPT">projectPPT</label>
+      <input type="file" id="projectPPT" name="data[Video][ppt]"></div>  
+      <input type="hidden" name="data[Video][file_url]" value="" id="projectFileUrl">   
+    </fieldset>
+  <input type="hidden" name="data[Video][planet_id]" id='video-p-id' value='1'>
+  <div class="submit"><input type="submit" value="Submit" id="video-submit"></div>
+</form>
+
+<br><br>
+<form  id="VideoEditform" enctype="multipart/form-data" method="post" accept-charset="utf-8">
+ <div style="display:none;"><input type="hidden" name="_method" value="POST"></div>
+ <fieldset>
+       <legend>Edit Project</legend>
+      <div class="input text"><label for="videoname">Video Name</label>
+      <input  maxlength="255" type="text" name="data[Video][name]" id="videoname"></div> 
+      <div class="input text"><label for="videoDes">Video Description</label>
+      <textarea  maxlength="255" type="text" name="data[Video][description]" id="videoDes"></textarea></div>   
+      <div class="input text"><label for="videolink2">Youtube Link</label>
+      <input  maxlength="64" type="text" name="data[Video][youtube_url]" id="videolink2"></div>
+      <span id="getPhotoName">PhotoName</span>   
+      <div class="input file"><label for="projectPhoto2">projectPhoto</label>
+      <input type="file" id="projectPhoto2" name="data[Video][photo]"></div> 
+      <span id="getPdfName">PdfName</span>  
+      <div class="input file"><label for="projectPDF2">projectPDF</label>
+      <input type="file" id="projectPDF2" name="data[Video][pdf]"></div> 
+      <span id="getPPTName">PPTName</span> 
+      <div class="input file"><label for="projectPPT2">projectPPT</label>
+      <input type="file" id="projectPPT2" name="data[Video][ppt]"></div>  
+      <input type="hidden" name="data[Video][file_url]" value="" id="projectFileUrl2">   
+    </fieldset>
+  <div class="submit"><input type="submit" value="update" id="video-edit"></div>
+</form>
+
+<br><br>
+<input type="submit" id='btn_deleteVideo' value="deleteVideo">
+<br><br>
+<input type="submit" id='btn_getVideo' value="GetVideo">
+
+<br><br>
+<form  id="RocketForm" enctype="multipart/form-data" method="post" accept-charset="utf-8">
+ <div style="display:none;"><input type="hidden" name="_method" value="POST"></div>
+ <fieldset>
+       <legend>Add Rocket</legend>
+      <div class="input file"><label for="RocketPhoto">Rocket Photo</label>
+      <input type="file" id="RocketPhoto" name="data[Rocket][photo]"></div>    
+      <input type="hidden" name="data[Rocket][image_url]" id="RocketImageUrl">    
+    </fieldset>
+  <div class="submit" ><input id="rocket-form-submit" type="submit" value="Submit"></div>
+</form>
+<br><br>
+
+<input type="submit" id='btn_deleteRocket' value="deleteRocket">
+
+
+<script src='https://code.jquery.com/jquery-2.2.4.js'></script>
+<script src='./js/libs/validate.min.js'></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+<!-- <script src='dmuploader.js'></script> -->
+<script src='test.js'></script>
+<script>
+/*var username;
+var password; 
+
+function make_base_auth(user, password) {
+  var tok = user + ':' + password;
+  var hash = btoa(tok);
+  console.log("Basic " + hash); 
+  return "Basic " + hash;
+}
+	
+$('#btn_login').click(function(e){
+	e.preventDefault();
+	 username = $("#username").val();
+     password = $("#password").val(); 
+     var h = make_base_auth(username, password);
+	$.ajax( {
+    url: 'http://localhost:8080/cake/users/login.json',
+    type: 'POST',
+   
+    
+   beforeSend: function (xhr){ 
+       xhr.setRequestHeader('Authorization', make_base_auth(username, password)); 
+    },
+
+   //  headers: {
+   // 'Authorization': h
+// },
+    success: function( data) {
+        console.log(data);
+    },
+    error: function(data){
+
+    	console.log(data);
+    }
+	} );
+});
+
+$('#btn_signup').click(function(e){
+	e.preventDefault();
+	 username = $("#re_username").val();
+     password = $("#re_password").val(); 
+     var _data = {};
+     _data.User = {};
+     _data.User.username = username;
+     _data.User.password = password;
+     _data.User.star_id = 1;
+     _data.User.role = 'admin';
+     console.log(_data);
+	$.ajax( {
+    url: 'http://localhost:8080/cake/users/add.json',
+    type: 'POST',
+    //dataType: 'json',
+    data:_data,
+    
+    success: function( data, status, headers,config) {
+        console.log(data);
+    },
+    error: function(data, status, headers,config){
+
+    	console.log('error');
+    }
+	} );
+
+});*/
+
+var app = new IU.App();
+console.log(app);
+
+$('#btn_login').click(function(e){
+	e.preventDefault();
+	app.login('username','password');
+
+});
+
+$('#btn_signup').click(function(e){
+
+	e.preventDefault();
+	app.signup('re_username','re_password');
+
+});
+
+$('#btn_logout').click(function(e){
+
+	e.preventDefault();
+	app.logout();
+
+});
+
+$('#btn_quadrant').click(function(e){
+
+  e.preventDefault();
+  app.getQuadrants();
+})
+
+$('#btn_galaxy').click(function(e){
+
+	e.preventDefault();
+	app.getGalaxies();
+});
+
+$('#btn_systems').click(function(e){
+
+  e.preventDefault();
+  app.getAllSystems();
+});
+
+$('#btn_system').click(function(e){
+
+	e.preventDefault();
+	app.getSystems(1);
+});
+
+$('#btn_planets').click(function(e){
+
+  e.preventDefault();
+  app.getPlanets(2);
+});
+
+$('#btn_addPlanet').click(function(e){
+
+  e.preventDefault();
+  app.addPlanet();
+});
+
+$('#form-submit').click(function(e){
+  e.preventDefault();
+  //var str = $( "#PlanetAddForm" ).serialize();
+  var fe = $( "#PlanetAddForm" )[0];
+   var fd = new FormData(fe);
+  //fd.append("CustomField", "This is some extra data");
+  fd.append("data[Planet][system_id]",1);
+  fd.append("data[Planet][planet_edge]",5);
+  //fd.append('photo', $('input[type=file]')[0].files[0]);
+//fd.append("CustomField", "This is some extra data");
+$.ajax({
+  url: "http://localhost:8080/cake/planets/add.json",
+  type: "POST",
+  data: fd,
+  processData: false,  // tell jQuery not to process the data
+  contentType: false,   // tell jQuery not to set contentType
+  success: function(data){
+          console.log(data);
+      },
+      error: function(data){
+        console.log(data);
+      }
+});
+
+  //console.log(str);
+   for (var pair of fd.entries()) {
+      console.log(pair[0]); 
+      console.log(pair[1]); 
+  }
+});
+
+$('#planetform-submit').click(function(e){
+    e.preventDefault();
+    var fe = $('#planetform')[0];
+     fd = new FormData(fe);
+     for (var pair of fd.entries()) {
+    console.log(pair); 
+     
+}
+    $.ajax({
+      url: "http://localhost:8080/cake/planets/edit/12.json",
+      type:"POST",
+      data: fd,
+      processData: false,  // tell jQuery not to process the data
+      contentType: false,   // tell jQuery not to set contentType
+      success:function(data){
+        console.log(data); 
+      },
+      error: function(status){
+        console.log(status);
+      }
+
+    });
+
+});
+
+$('#pform-submit').click(function(e){
+    e.preventDefault();
+    var fe = $('#profileform')[0];
+     fd = new FormData(fe);
+     for (var pair of fd.entries()) {
+    console.log(pair); 
+     
+}
+    $.ajax({
+      url: "http://localhost:8080/cake/profiles/edit/3.json",
+      type:"POST",
+      data: fd,
+      processData: false,  // tell jQuery not to process the data
+      contentType: false,   // tell jQuery not to set contentType
+      success:function(data){
+        console.log(data); 
+      },
+      error: function(status){
+        console.log(status);
+      }
+
+    });
+
+});
+
+$('#skill-submit').click(function(e){
+    e.preventDefault();
+    var fe = $('#skillform')[0];
+     fd = new FormData(fe);
+     for (var pair of fd.entries()) {
+    console.log(pair); 
+     
+}
+    $.ajax({
+      url: "http://localhost:8080/cake/skills/add.json",
+      type:"POST",
+      data: fd,
+      processData: false,  // tell jQuery not to process the data
+      contentType: false,   // tell jQuery not to set contentType
+      success:function(data){
+        console.log(data); 
+      },
+      error: function(status){
+        console.log(status);
+      }
+
+    });
+
+});
+
+$('#btn_deleteSkill').click(function(e){
+  e.preventDefault();
+  $.ajax({
+      url: "http://localhost:8080/cake/skills/delete/14.json",
+      type:"POST",
+      success:function(data){
+        console.log(data); 
+      },
+      error: function(status){
+        console.log(status);
+      }
+
+    });
+
+});
+
+$('#video-submit').click(function(e){
+  e.preventDefault();
+   var link = $("#videolink").val();
+   var regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    var match = link.match(regExp);
+
+    e.preventDefault();
+    var fe = $('#Videoform')[0];
+     fd = new FormData(fe);
+     // for (var pair of fd.entries()) {
+     //   console.log(pair); 
+     // }
+  if (match && match[2].length == 11) {
+        console.log(match[2]);
+        /*var _data = {};
+        _data.Video = {};
+       _data.Video.youtube_url = match[2];
+       _data.Video.planet_id = 1;*/
+       fd.set('data[Video][planet_id]', 1);
+       fd.set('data[Video][youtube_url]', match[2]);
+        for (var pair of fd.entries()) {
+          console.log(pair); 
+        }
+        
+        $.ajax({
+          url: "http://localhost:8080/cake/videos/add.json",
+          type:"POST",
+          data:fd,
+          processData: false,  // tell jQuery not to process the data
+           contentType: false,   // tell jQuery not to set contentType
+          success:function(data){
+            console.log(data); 
+          },
+          error: function(status){
+            console.log(status);
+          }
+
+        });
+
+  } 
+  else {
+        //error
+    console.log('not a valid youtube link');
+  }
+
+})
+
+$('#btn_deleteVideo').click(function(e){
+  e.preventDefault();
+  $.ajax({
+      url: "http://localhost:8080/cake/videos/delete/44.json",
+      type:"POST",
+      success:function(data){
+        console.log(data); 
+      },
+      error: function(status){
+        console.log(status);
+      }
+
+    });
+
+});
+
+$('#rocket-form-submit').click(function(e){
+  e.preventDefault();
+  //var str = $( "#PlanetAddForm" ).serialize();
+  var fe = $( "#RocketForm" )[0];
+  var fd = new FormData(fe);
+  fd.append("data[Rocket][planet_id]",1);
+
+  $.ajax({
+    url: "http://localhost:8080/cake/rockets/add.json",
+    type: "POST",
+    data: fd,
+    processData: false,  // tell jQuery not to process the data
+    contentType: false,   // tell jQuery not to set contentType
+    success: function(data){
+            console.log(data);
+        },
+        error: function(status){
+          console.log(status);
+        }
+  });
+
+  //console.log(str);
+   for (var pair of fd.entries()) {
+      console.log(pair[0]); 
+      console.log(pair[1]); 
+  }
+});
+
+
+$('#btn_deleteRocket').click(function(e){
+  e.preventDefault();
+  $.ajax({
+      url: "http://localhost:8080/cake/rockets/delete/14.json",
+      type:"POST",
+      success:function(data){
+        console.log(data); 
+      },
+      error: function(status){
+        console.log(status);
+      }
+
+    });
+
+});
+
+$('#btn_getVideo').click(function(e){
+  e.preventDefault()
+  $.ajax({
+      url: "http://localhost:8080/cake/videos/get/45.json",
+      type:"POST",
+      success:function(data){
+        console.log(data); 
+        $('#getPhotoName').text(data.message.video.Video.photo);
+        $('#getPdfName').text(data.message.video.Video.pdf);
+        $('#getPPTName').text(data.message.video.Video.ppt);
+        $('#videoname').val(data.message.video.Video.name);
+        $('#videoDes').val(data.message.video.Video.description);
+        $('#videolink2').val("https://www.youtube.com/watch?v=" + data.message.video.Video.youtube_url);
+       //$('#video-edit').hide();
+
+      },
+      error: function(status){
+        console.log(status);
+      }
+
+    });
+
+});
+
+
+$('#video-edit').click(function(e){
+  e.preventDefault();
+  var link = $("#videolink2").val();
+   var regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    var match = link.match(regExp);
+
+    e.preventDefault();
+    var fe = $('#VideoEditform')[0];
+     fd = new FormData(fe);
+
+  if (match && match[2].length === 11)  fd.set('data[Video][youtube_url]', match[2]);
+  else fd.delete('data[Video][youtube_url]');
+   
+  if($('#projectPhoto2').val() === "") fd.delete('data[Video][photo]');
+  if($('#projectPDF2').val() === "") fd.delete('data[Video][pdf]');
+  if($('#projectPPT2').val() === "") fd.delete('data[Video][ppt]');
+  if($('#projectPhoto2').val() === "" && $('#projectPDF2').val() === "" && $('#projectPPT2').val() === "") fd.delete('data[Video][file_url]');
+        for (var pair of fd.entries()) {
+          console.log(pair); 
+        }
+
+      $.ajax({
+      url: "http://localhost:8080/cake/videos/edit/45.json",
+      type:"POST",
+      data:fd,
+      processData: false,  // tell jQuery not to process the data
+      contentType: false,   // tell jQuery not to set contentType
+      success:function(data){
+        console.log(data); 
+      },
+      error: function(status){
+        console.log(status);
+      }
+
+    });
+ 
+  // else {
+  //       //error
+  //   console.log('not a valid youtube link');
+  // }
+
+});
+
+
+</script>
+<!-- <script>
+    (function() {
+      // Before using it we must add the parse and format functions
+      // Here is a sample implementation using moment.js
+/*      validate.extend(validate.validators.datetime, {
+        // The value is guaranteed not to be null or undefined but otherwise it
+        // could be anything.
+        parse: function(value, options) {
+          return +moment.utc(value);
+        },
+        // Input is a unix timestamp
+        format: function(value, options) {
+          var format = options.dateOnly ? "YYYY-MM-DD" : "YYYY-MM-DD hh:mm:ss";
+          return moment.utc(value).format(format);
+        }
+      });*/
+
+      // These are the constraints used to validate the form
+      var constraints = {
+        /*email: {
+          // Email is required
+          presence: true,
+          // and must be an email (duh)
+          email: true
+        },*/
+        password: {
+          // Password is also required
+          presence: true,
+          // And must be at least 5 characters long
+          length: {
+            minimum: 5
+          }
+        },
+/*        "confirm-password": {
+          // You need to confirm your password
+          presence: true,
+          // and it needs to be equal to the other password
+          equality: {
+            attribute: "password",
+            message: "^The passwords does not match"
+          }
+        },*/
+        username: {
+          // You need to pick a username too
+          presence: true,
+          // And it must be between 3 and 20 characters long
+          length: {
+            minimum: 3,
+            maximum: 20
+          },
+          format: {
+            // We don't allow anything that a-z and 0-9
+            pattern: "[a-z0-9]+",
+            // but we don't care if the username is uppercase or lowercase
+            flags: "i",
+            message: "can only contain a-z and 0-9"
+          }
+        },
+        /*birthdate: {
+          // The user needs to give a birthday
+          presence: true,
+          // and must be born at least 18 years ago
+          date: {
+            latest: moment().subtract(18, "years"),
+            message: "^You must be at least 18 years old to use this service"
+          }
+        },
+        country: {
+          // You also need to input where you live
+          presence: true,
+          // And we restrict the countries supported to Sweden
+          inclusion: {
+            within: ["SE"],
+            // The ^ prevents the field name from being prepended to the error
+            message: "^Sorry, this service is for Sweden only"
+          }
+        },
+        zip: {
+          // Zip is optional but if specified it must be a 5 digit long number
+          format: {
+            pattern: "\\d{5}"
+          }
+        },
+        "number-of-children": {
+          presence: true,
+          // Number of children has to be an integer >= 0
+          numericality: {
+            onlyInteger: true,
+            greaterThanOrEqualTo: 0
+          }
+        }*/
+      };
+
+      // Hook up the form so we can prevent it from being posted
+      var form = document.querySelector("form#login");
+      form.addEventListener("submit", function(ev) {
+        ev.preventDefault();
+        handleFormSubmit(form);
+      });
+
+      // Hook up the inputs to validate on the fly
+      //var inputs = document.querySelectorAll("input, textarea, select")
+      var inputs = form.querySelectorAll("input")
+      for (var i = 0; i < inputs.length; ++i) {
+        inputs.item(i).addEventListener("change", function(ev) {
+          var errors = validate(form, constraints) || {};
+          showErrorsForInput(this, errors[this.name])
+        });
+      }
+
+      function handleFormSubmit(form, input) {
+        // validate the form aainst the constraints
+        var errors = validate(form, constraints);
+        console.log(errors);
+        // then we update the form to reflect the results
+        showErrors(form, errors || {});
+        if (!errors) {
+          showSuccess();
+        }
+      }
+
+      // Updates the inputs with the validation errors
+      function showErrors(form, errors) {
+        // We loop through all the inputs and show the errors for that input
+        _.each(form.querySelectorAll("input[name], select[name]"), function(input) {
+          // Since the errors can be null if no errors were found we need to handle
+          // that
+          showErrorsForInput(input, errors && errors[input.name]);
+        });
+      }
+
+      // Shows the errors for a specific input
+      function showErrorsForInput(input, errors) {
+        // This is the root of the input
+        var formGroup = closestParent(input.parentNode, "form-group")
+          // Find where the error messages will be insert into
+          , messages = formGroup.querySelector(".messages");
+        // First we remove any old messages and resets the classes
+        resetFormGroup(formGroup);
+        // If we have errors
+        if (errors) {
+          // we first mark the group has having errors
+          formGroup.classList.add("has-error");
+          // then we append all the errors
+          _.each(errors, function(error) {
+            addError(messages, error);
+          });
+        } else {
+          // otherwise we simply mark it as success
+          formGroup.classList.add("has-success");
+        }
+      }
+
+      // Recusively finds the closest parent that has the specified class
+      function closestParent(child, className) {
+        if (!child || child == document) {
+          return null;
+        }
+        if (child.classList.contains(className)) {
+          return child;
+        } else {
+          return closestParent(child.parentNode, className);
+        }
+      }
+
+      function resetFormGroup(formGroup) {
+        // Remove the success and error classes
+        formGroup.classList.remove("has-error");
+        formGroup.classList.remove("has-success");
+        // and remove any old messages
+        _.each(formGroup.querySelectorAll(".help-block.error"), function(el) {
+          el.parentNode.removeChild(el);
+        });
+      }
+
+      // Adds the specified error with the following markup
+      // <p class="help-block error">[message]</p>
+      function addError(messages, error) {
+        var block = document.createElement("p");
+        block.classList.add("help-block");
+        block.classList.add("error");
+        block.innerText = error;
+        messages.appendChild(block);
+      }
+
+      function showSuccess() {
+        // We made it \:D/
+        console.log('Success');
+        alert("Success!");
+      }
+    })();
+  </script> -->
+
+</body>
+</html>

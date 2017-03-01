@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The skill editing pop-up window.
+-->
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+	title="Edit skills"
+	layout="vertical"
+	width="500" 
+	height="400">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.collections.ArrayCollection;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.events.FaultEvent;
+			import models.CelestialBody.PlanetVO;
+			import models.Skill.SkillLevelVO;
+			import models.Skill.SkillTypeVO;
+			import models.Skill.SkillVO;
+			import mx.managers.PopUpManager;
+		
+			/** The current user of the skill to be managed. */
+			private var planet:PlanetVO;
+			
+			/** The skills that belong to current user. */
+			private var skills:Array;
+			
+			/** Currently selected skill. */
+			private var currentSelection:SkillVO;
+			
+			/** Window for editing each skill item. */
+			private var skillForm:_EditSkillPopUp;
+		
+			public function init(planet:PlanetVO):void {
+				this.planet = planet;
+				updateList();
+			}
+			
+			/** Refresh/Update the list. */
+			public function updateList():void {
+				skillRemote.getSkillsByParentID(planet.id);
+			}
+			
+			/** When "Add" button is pressed. */
+			private function add():void {
+				skillForm = new _EditSkillPopUp();
+				skillForm.init(this);
+				
+				PopUpManager.addPopUp(skillForm, this, true);
+				PopUpManager.centerPopUp(skillForm);
+				
+				skillForm = null;
+			}
+
+			/** When "Edit" button is pressed, or an item is double clicked. */
+			private function edit():void {
+				currentSelection = SkillVO(gridSkills.selectedItem);
+				
+				if ( !currentSelection ) {
+					return;
+				}
+				
+				skillForm = new _EditSkillPopUp();
+				skillForm.init(this, currentSelection);
+				
+				PopUpManager.addPopUp(skillForm, this, true);
+				PopUpManager.centerPopUp(skillForm);
+				
+				skillForm = null;
+			}
+			
+			/** When "Delete" button is pressed. */
+			private function deleteSkill():void {
+				currentSelection = SkillVO(gridSkills.selectedItem);
+				
+				if ( !currentSelection ) {
+					return;
+				}
+
+				skillRemote.deleteSkill(currentSelection);
+			}
+			
+			/** Close this pop-up window. */
+			private function close():void {
+				PopUpManager.removePopUp(this);
+			}
+			
+			/** Handles skillRemote.getSkillsByParentID(). */
+			private function _getSkillsByParentID(e:ResultEvent):void {
+				skills = e.result as Array;
+				
+				gridSkills.dataProvider = new ArrayCollection(skills);
+			}
+			
+			/** Handles skillRemote.deleteSkill(). */
+			private function _deleteSkill(e:ResultEvent):void {
+				var result:Boolean = e.result as Boolean;; 
+				
+				if (!result) {
+					Alert.show("Something went wrong.\n\nPlease try again!", "Invention Universe > Error");
+					return;
+				}
+				
+				updateList();
+			}
+			
+			/** Get Planet ID. Will be called in _EditSkillPopUp. */
+			public function getPlanetID():int {
+				return planet.id;
+			}
+			
+			/** Fault listener for remote objects */
+			public static function faultListener(e:FaultEvent):void {
+				trace( e.message );
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- COMPONENTS -->
+	<mx:DataGrid id="gridSkills" width="100%" height="100%" variableRowHeight="true" doubleClickEnabled="true" doubleClick="edit();">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Type" dataField="type" width="120" />
+			<mx:DataGridColumn headerText="Name" dataField="name" wordWrap="true" />
+			<mx:DataGridColumn headerText="Level" dataField="level" width="100" />
+		</mx:columns>
+	</mx:DataGrid>
+	
+	<mx:HBox width="100%" paddingLeft="10" paddingRight="10" paddingBottom="10">
+		<mx:Button label="Add" click="add();" />
+		<mx:Button label="Edit" click="edit();" />	
+		<mx:Button label="Delete" click="deleteSkill();" />
+	</mx:HBox>
+	
+	<mx:ControlBar width="100%" horizontalAlign="right">
+		<mx:Button label="Close" click="close();" />
+	</mx:ControlBar>
+	
+	<!-- REMOTE OBJECTS -->
+	<mx:RemoteObject id="skillRemote" destination="zend" source="SkillService" fault="faultListener(event);">
+		<mx:method name="getSkillsByParentID" result="_getSkillsByParentID(event);" />
+		<mx:method name="deleteSkill" result="_deleteSkill(event);" />
+	</mx:RemoteObject>
+</mx:Panel>

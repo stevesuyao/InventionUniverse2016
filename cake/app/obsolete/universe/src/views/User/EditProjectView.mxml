@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	This view provides the UI for basic CRUD tasks for a user's projects.
+	
+	It uses a DataGrid to display the projects and a separate pop-up form to 
+	create new projects or edit existing ones. Using a form is advantageous 
+	compared to editing the DataGrid directly because it provides greater 
+	allowance to enforce database relations (i.e.	non-nullable fields) through 
+	validators, and is more convenient to edit multi-line fields.
+-->
+<mx:Panel 
+	xmlns:mx="http://www.adobe.com/2006/mxml" 
+	title="Edit projects"
+	layout="vertical"
+	width="600"
+	height="400">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.events.CloseEvent;
+			import models.CelestialBody.PlanetVO;
+			import models.Project.ProjectVO;
+			import mx.containers.FormItem;
+			import mx.controls.Button;
+			import mx.controls.TextInput;
+			import mx.containers.Form;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.events.ListEvent;
+			import mx.collections.ArrayCollection;
+			import mx.managers.PopUpManager;
+			import mx.controls.Alert;
+			import flash.net.navigateToURL;
+			import flash.net.URLRequest;
+			
+			/** Maximum size of a project file in bytes. */
+			public static const MAX_FILE_SIZE:int = 1024 * 1024 * 10; 
+			
+			/** The current user and parent of the projects to be managed. */
+			private var planet:PlanetVO;
+			
+			/** The projects that belong to the current user. */
+			private var projects:Array; /* of ProjectVO */
+			
+			/** The currently selected project on the DataGrid, if any. */
+			private var currentSelection:ProjectVO;
+			
+			/** The window that contains the form to create and update projects. */
+			private var projectForm:_EditProjectPopUp;
+			
+			// Enumeration of available actions.
+			public static const NO_ACTION:int 		= 0;
+			public static const CREATE_ACTION:int = 1;
+			public static const UPDATE_ACTION:int = 2;
+			
+			/** The current action being taken on a project. */
+			private var currentAction:int = NO_ACTION;
+			
+			public function init(planet:PlanetVO):void {	
+				this.planet = planet;
+							
+				// Get this user's projects.
+				projectRemote.getProjectsByParentID(this.planet.id);
+			}
+			
+			/** 
+			 * Handles submission of form data for project creation and update. 
+			 * Called by form in ProjectPopUpView window.
+			 */
+			internal function submit(name:String, type_id:int, description:String, fileData:ByteArray):void {
+				// Submit based on which flag is set (CREATE/UPDATE).
+				// Project URL is set server-side.
+				if (currentAction == CREATE_ACTION) {
+					var newProject:ProjectVO = new ProjectVO();
+					
+					newProject.parent_id = planet.id;
+					newProject.name = name;
+					newProject.type_id = type_id;
+					newProject.description = description;
+					
+					projectRemote.putProject(newProject, fileData);
+				} else if (currentAction == UPDATE_ACTION) {
+					// Only update description and, optionally, file data.
+					currentSelection.description = description;
+					
+					projectRemote.updateProject(currentSelection, fileData);
+				}
+				
+				// Refresh the project list.
+				projectRemote.getProjectsByParentID(planet.id);
+				
+				// Reset action flag.
+				currentAction = NO_ACTION;
+			}
+			
+			/** Updates the 'currentSelection' reference to the newly selected project. */
+			private function selectProject(e:ListEvent):void {
+				currentSelection = ProjectVO(e.currentTarget.selectedItem);
+			}
+			
+			/** Opens window for creating a new project. */
+			private function createProject():void {
+				currentAction = CREATE_ACTION;
+				
+				// Create pop-up window.
+				projectForm = new _EditProjectPopUp();	
+				projectForm.init(this);
+							
+				PopUpManager.addPopUp(projectForm, this, true);
+				PopUpManager.centerPopUp(projectForm);
+				
+				projectForm.formHeading.label = "Create a new project!";
+			}
+			
+			/** Opens window for updating a project. */
+			private function updateProject():void {
+				if (currentSelection == null) {
+					Alert.show("Please select a project first.", "Invention Universe > Update Project");
+					return;
+				}
+				
+				currentAction = UPDATE_ACTION;
+
+				// Create pop-up window.
+				projectForm = new _EditProjectPopUp();		
+				projectForm.init(this, false);
+						
+				PopUpManager.addPopUp(projectForm, this, true);
+				PopUpManager.centerPopUp(projectForm);
+				
+				projectForm.formHeading.label = "Edit your project!";
+				
+				// Fill out old data in form fields.
+				projectForm.inputProjectName.text = currentSelection.name;
+				projectForm.inputProjectName.enabled = false;
+				// We can't directly modify the selectedIndex of the combo box here,
+				// because its contents may not have been set yet (waiting on a 
+				// remoting call for the project types). Do it indirectly instead!
+				projectForm.comboDefaultIndex = currentSelection.type_id - 1;
+				//projectForm.comboType.enabled = false;
+				projectForm.inputDescription.text = currentSelection.description;
+			}
+			
+			/** Deletes currently selected project. */
+			private function deleteProject():void {
+				if (currentSelection == null) {
+					Alert.show("Please select a project first.", "Invention Universe > Delete Project");
+					return;
+				}
+				
+				Alert.show(
+					"You are about to delete project:\n\t\"" +
+						currentSelection.name +	" [" + currentSelection.type + "]\"\n\n" +
+						"Are you sure?",
+					"Delete project",
+					Alert.YES | Alert.NO,
+					this, alertHandler).width = 350;
+			}
+			
+			/** Delete confirmation. */
+			private function alertHandler(e:CloseEvent):void {
+				if (e.detail == Alert.YES) {
+					projectRemote.deleteProject(currentSelection);
+				}	
+			}
+			
+			/** Opens the url associated with the currently selected project in a new browser window. */
+			private function downloadProject():void {
+				if (currentSelection == null) {
+					Alert.show("Please select a project first.", "Invention Universe > Download Project");
+					return;
+				}
+
+				var project:ProjectVO = ProjectVO(currentSelection);
+				
+				if (project.type == "Scratch") {
+					// Open Scratch projects in special applet window.
+					navigateToURL(new URLRequest("../uploads/scratch.html?" + "projects/" + project.parent_id + "/" + project.id), "_blank");
+				} else {
+					navigateToURL(new URLRequest(InventionUniverse.UPLOADS_PATH + project.url));
+				}
+			}
+			
+			/** Handles projectRemote.getProjectsByParentID(). */
+			private function _getProjectsByParentID(e:ResultEvent):void {
+				// There is an issue here. We don't check for an invalid return 
+				// because Zend Amf translates empty arrays in PHP to null objects in
+				// AS, so a user with no projects would receive an error if there 
+				// was a check. Not having a check means that if there WAS an error
+				// in the controller, there would be no error message displayed. 
+				// Eventually, we could define some sort of consistent error code
+				// enumeration for function returns between PHP/AS so we could 
+				// differentiate between e.g. "EMPTY_RESULT_ERROR" or 
+				// "DB_CONNECTION_ERROR".
+				projects = e.result as Array; /* of ProjectVO */
+				
+				// Display projects on DataGrid.
+				gridProjects.dataProvider = new ArrayCollection(projects);
+			}
+			
+			/** Handles projectRemote.putProject(). */
+			private function _putProject(e:ResultEvent):void {
+				var isSuccess:Boolean = e.result as Boolean;
+				
+				if (!isSuccess) {
+					Alert.show(InventionUniverse.NULL_RETURN_ERROR, "Invention Universe > Error");
+					return;
+				}
+				
+				statisticsRemote.saveSnapshot();
+				
+				Alert.show("Successfully created a new project!", "Invention Universe > New Project");
+					
+				// Finally, remove the form pop-up.
+				PopUpManager.removePopUp(projectForm);	
+			}
+			
+			/** Handles projectRemote.updateProject(). */
+			private function _updateProject(e:ResultEvent):void {
+				var isSuccess:Boolean = e.result as Boolean;
+				
+				if (!isSuccess) {
+					Alert.show(InventionUniverse.NULL_RETURN_ERROR, "Invention Universe > Error");
+					return;
+				}
+				
+				statisticsRemote.saveSnapshot();
+
+				Alert.show("Successfully updated project!", "Invention Universe > Update Project");
+				
+				// Finally, remove the form pop-up.
+				PopUpManager.removePopUp(projectForm);
+			}
+			
+			/** Handles projectRemote.deleteProject(). */
+			private function _deleteProject(e:ResultEvent):void {
+				var isSuccess:Boolean = e.result as Boolean;
+				
+				if (!isSuccess) {
+					Alert.show(InventionUniverse.NULL_RETURN_ERROR, "Invention Universe > Error");
+					return;
+				}
+				
+				statisticsRemote.saveSnapshot();
+				
+				Alert.show("Successfully deleted project!", "Invention Universe > Delete Project");
+				
+				// Refresh the project list.
+				projectRemote.getProjectsByParentID(planet.id);
+			}
+			
+			/** Closes this pop-up window. */
+			private function close():void {
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- COMPONENTS -->
+	<mx:DataGrid id="gridProjects" itemClick="selectProject(event)" variableRowHeight="true" width="100%" height="100%">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Name" dataField="name" />
+			<mx:DataGridColumn headerText="Type" dataField="type" />
+			<mx:DataGridColumn headerText="Description" dataField="description" width="300" wordWrap="true"/>
+		</mx:columns>
+	</mx:DataGrid>
+	
+	<mx:HBox width="100%" paddingLeft="10" paddingRight="10" paddingBottom="10">
+		<mx:Button label="New" click="createProject();" />
+		<mx:Button label="Edit" click="updateProject();" />
+		<mx:Button label="Delete" click="deleteProject();" />
+		<mx:Spacer width="100%" />
+		<mx:Button label="Download!" click="downloadProject();" />
+	</mx:HBox>
+
+	<mx:ControlBar width="100%">
+		<mx:Spacer width="100%" />
+		<mx:Button label="Cancel" click="close();" />
+	</mx:ControlBar>
+	
+	<!-- REMOTE OBJECTS -->
+	<mx:RemoteObject id="projectRemote" destination="zend" source="ProjectService" fault="InventionUniverse.remoteFaultListener(event)" showBusyCursor="true">
+		<mx:method name="getProjectsByParentID" result="_getProjectsByParentID(event)" />
+		<mx:method name="putProject" result="_putProject(event)" />
+		<mx:method name="updateProject" result="_updateProject(event)" />
+		<mx:method name="deleteProject" result="_deleteProject(event)" />
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="statisticsRemote" destination="zend" source="StatisticsService">
+		<mx:method name="saveSnapshot" />
+	</mx:RemoteObject>
+	
+</mx:Panel>

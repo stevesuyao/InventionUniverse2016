@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The registration form pop-up window. 
+-->
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml" 
+	title="Invention Universe"
+	layout="vertical"
+	creationComplete="Application.application.toggleTimer(false);">
+
+	<mx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import models.CelestialBody.PlanetarySystemVO;
+			import models.CelestialBody.PlanetVO;
+			import mx.validators.StringValidator;
+			import mx.validators.EmailValidator;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.managers.PopUpManager;
+			import mx.controls.Alert;
+			
+			/** The potential planet name input by the user for registration. */
+			private var candidatePlanetName:String;
+			
+			/** Indicates whether the submit button was recently pressed. */
+			private var isSubmit:Boolean = false;
+			
+			/** The previously selected parent planetary system that this planet will reside on. */
+			[Bindable]
+			private var parentSystem:PlanetarySystemVO;
+			
+			public function init(parentSystem:PlanetarySystemVO):void {
+				this.parentSystem = parentSystem;
+			}
+			
+			/** Checks the availability of a given planet name (must be unique). */
+			private function checkAvailability(name:String):void {
+				candidatePlanetName = name;
+				planetRemote.getPlanetByName(candidatePlanetName);
+			}
+			
+			/** Handles PlanetService->getPlanetByName(). */
+			private function _getPlanetByName(e:ResultEvent):void {			
+				var planet:PlanetVO = e.result as PlanetVO;
+				
+				// Validate planet name.
+				var valResult:ValidationResultEvent = valPlanetName.validate(candidatePlanetName);
+				
+				if (valResult.type != ValidationResultEvent.INVALID) {
+					if (planet != null) { // If the remote call yields a planet, then the planet name already exists.
+						Alert.show("Sorry, '" + candidatePlanetName + "' is already taken!", "Invention Universe");
+					} else {
+						if (isSubmit) {
+							// SUBMIT!
+							var newPlanet:PlanetVO = new PlanetVO();
+							newPlanet.parent_id = parentSystem.id;
+							newPlanet.name = candidatePlanetName;
+							newPlanet.password = inputPassword.text;
+							newPlanet.first_name = inputFirstName.text;
+							newPlanet.last_name = inputLastName.text;
+							newPlanet.email = inputEmail.text;
+							
+							planetRemote.putPlanet(newPlanet);
+						} else {
+							// 'Check availability' button was pressed.
+							Alert.show("'" + candidatePlanetName + "' is available!", "Invention Universe");
+						}
+					}
+				}
+				
+				isSubmit = false; // Reset submit flag.
+				
+				enableFields();
+			}
+		
+			/** Validates registration fields and submits the form. */
+			private function validateAndSubmit():void {
+				// Disable fields during validation to make sure nothing changes mid-way.
+				disableFields();
+				
+				var valResult:ValidationResultEvent;
+
+				valResult = valPassword.validate(inputPassword.text);
+				if (valResult.type == ValidationResultEvent.INVALID)
+					return;
+
+				valResult = valEmail.validate(inputEmail.text);
+				if (valResult.type == ValidationResultEvent.INVALID)
+					return;
+				
+				valResult = valFirstName.validate(inputFirstName.text);
+				if (valResult.type == ValidationResultEvent.INVALID)
+					return;
+					
+				valResult = valLastName.validate(inputLastName.text);
+				if (valResult.type == ValidationResultEvent.INVALID)
+					return;
+					
+				// Finally, check the availability of this planet name.
+				// Since remoting is asynchronous, need to finish validation and submit
+				// in event handler method handleGetPlanetByName().
+				isSubmit = true;
+				checkAvailability(inputPlanetName.text);
+			}
+			
+			/** Handles PlanetService->putPlanet(). */
+			private function _putPlanet(e:ResultEvent):void {	
+				var isSuccess:Boolean = e.result as Boolean;
+							
+				if (!isSuccess) {
+					Alert.show("Supernatural phenomena prevents registration at this time!\n\nPlease try again later.", "Invention Universe");
+					return;
+				}
+				
+				statisticsRemote.saveSnapshot();
+				
+				Alert.show("Planet application succesfully sent!\n\n" + 
+					"To maintain a safe and friendly universe, your application is being processed for approval.", "Invention Universe");
+					
+				Application.application.loadDefaultView();
+					
+				close();
+			}
+			
+			/** Disable all fields. */
+			private function disableFields():void {
+				inputPlanetName.enabled = false;
+				inputPassword.enabled = false;
+				inputEmail.enabled = false;
+				inputFirstName.enabled = false;
+				inputLastName.enabled = false;
+			}
+			
+			/** Enable all fields. */
+			private function enableFields():void {
+				inputPlanetName.enabled = true;
+				inputPassword.enabled = true;
+				inputEmail.enabled = true;
+				inputFirstName.enabled = true;
+				inputLastName.enabled = true;
+			}
+		
+			/** Closes this pop-up window. */
+			private function close():void {				
+				PopUpManager.removePopUp(this);
+				
+				Application.application.toggleTimer(true);
+			}	
+		]]>
+	</mx:Script>
+	
+	<!-- FIELD VALIDATORS -->
+	<mx:StringValidator id="valPlanetName" required="true" source="{inputPlanetName}" property="text" />
+	<mx:StringValidator id="valPassword" required="true" source="{inputPassword}" property="text" />
+	<mx:EmailValidator id="valEmail" required="true" source="{inputEmail}" property="text" />
+	<mx:StringValidator id="valFirstName" required="true" source="{inputFirstName}" property="text" />
+	<mx:StringValidator id="valLastName" required="true" source="{inputLastName}" property="text" />
+	
+	<!-- FORM COMPONENTS -->
+	<mx:Form>
+		<mx:Text width="300" paddingBottom="5">
+			<mx:text>
+			Finish registration by selecting a planet name and entering your contact information.
+			When you are finished, click the "Create!" button on the bottom-right corner of the window.
+			</mx:text>
+		</mx:Text>
+		
+		<mx:FormItem label="Celestial location" paddingBottom="10">
+			<mx:TextInput text="{parentSystem.name}" enabled="false" />
+		</mx:FormItem>
+		
+		<mx:HRule width="100%" height="1"/>	
+		
+		<mx:FormHeading label="Create your planet!" />
+		
+		<mx:FormItem label="Desired planet name" required="true">
+			<mx:TextInput id="inputPlanetName"  maxChars="16"/>
+			<mx:Button id="btnCheckName" label="Check availability" click="checkAvailability(inputPlanetName.text);" />
+		</mx:FormItem>
+		<mx:FormItem label="Password" required="true">
+			<mx:TextInput id="inputPassword" displayAsPassword="true" />
+		</mx:FormItem>
+		
+		<mx:HRule width="100%" height="1"/>		
+		
+		<mx:FormItem label="E-mail address" required="true">
+			<mx:TextInput id="inputEmail" />
+		</mx:FormItem>
+		<mx:FormItem label="First name" required="true">
+			<mx:TextInput id="inputFirstName" />
+		</mx:FormItem>
+		<mx:FormItem label="Last name" required="true">
+			<mx:TextInput id="inputLastName" />
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:ControlBar width="100%">
+		<mx:Spacer width="100%" />
+		<mx:Button label="Create!" click="validateAndSubmit();" />
+		<mx:Button label="Cancel" click="close();" />
+	</mx:ControlBar>
+	
+	<!-- REMOTE OBJECTS -->
+	<mx:RemoteObject id="planetRemote" destination="zend" source="PlanetService" fault="InventionUniverse.remoteFaultListener(event)" showBusyCursor="true">
+		<mx:method name="getPlanetByName" result="_getPlanetByName(event)" />
+		<mx:method name="putPlanet" result="_putPlanet(event)" />
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="statisticsRemote" destination="zend" source="StatisticsService">
+		<mx:method name="saveSnapshot" />
+	</mx:RemoteObject>
+</mx:Panel>

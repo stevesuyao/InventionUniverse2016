@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The edit planet image pop-up window.
+-->
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+	title="Edit account > Planet image"
+	layout="horizontal">
+
+	<mx:Style>
+		.radioButton {
+			color: white;
+		}
+	</mx:Style>
+
+	<mx:Script>
+		<![CDATA[
+			import models.CelestialBody.PlanetVO;
+			import mx.controls.Alert;
+			import mx.core.Application;
+			import mx.graphics.codec.PNGEncoder;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			/** Default image_url value. */
+			static private var DEFAULT_PLANET_IMAGE_URL:String = "assets/images/planet.png";
+			
+			/** Parent view. */
+			private var accountView:EditAccountView;
+
+			/** The current user of the planet image to be managed. */
+			private var planet:PlanetVO;
+			
+			/** Encoded image data. */
+			private var encData:ByteArray;
+			
+			/** FileReference to local image file. For file browsing. */
+			private var fileRef:FileReference; 
+			
+			/** File filter for fileRef. */
+			private var fileFilters:Array;
+			
+			public function init(accountView:EditAccountView, planet:PlanetVO):void {
+				this.accountView = accountView;
+				planetRemote.getPlanetByID(planet.id); // Always get the updated planet data.
+				
+				fileRef = new FileReference();
+				fileRef.addEventListener(Event.SELECT, _selectFile);
+				fileRef.addEventListener(Event.COMPLETE, _completeLoad);
+				
+				fileFilters = [new FileFilter("Image files", "*.jpg; *.png; *.bmp; *.gif")];
+				
+				callLater(initLater);
+			}
+			
+			/** Initialize all UI components. */
+			private function initLater():void {
+				if (planet == null) {
+					callLater(initLater);
+					return;
+				}
+				
+				if (planet.image_url == DEFAULT_PLANET_IMAGE_URL) {
+					optDefault.selected = true;
+				} else {
+					optCustom.selected = true;
+				}
+				radioChange();
+			}
+			
+			/** Select preview image mode. */
+			private function selectPreview(customView:Boolean):void {
+				if (customView) {
+					if ( fileRef.data != null ) {
+						imgPlanetImage.data = fileRef.data;
+						return;
+					}
+
+					imgPlanetImage.load(planet.image_url);
+					return;
+				}
+				
+				imgPlanetImage.load(DEFAULT_PLANET_IMAGE_URL);
+			}
+			
+			/** FileRef: a file is selected. */
+			private function _selectFile(e:Event):void {
+				txtFilename.text = "Loading...";
+				btnOK.enabled = false;
+				fileRef.load();
+			}
+			
+			/** FileRef: a file completes loading. */
+			private function _completeLoad(e:Event):void {
+				txtFilename.text = fileRef.name;
+				imgPlanetImage.data = fileRef.data;
+				btnOK.enabled = true;
+			}
+			
+			/** When selected radio button is changed. */
+			private function radioChange():void {
+				itemOption.visible = optCustom.selected;
+				selectPreview( itemOption.visible );
+			}
+			
+			/** Encode image data. */
+			private function transcode():void {
+				var bmpData:BitmapData; // Image data container
+				var pngEnc:PNGEncoder; // Encoder
+				
+				// Take a snapshot from imgPlanetImage.
+				bmpData = new BitmapData(300, 300, true, 0x00000000);
+				
+				// Transform matrix. Computer the center alignment.
+				var matrix:Matrix = new Matrix();
+				matrix.translate(
+					(300 - imgPlanetImage.contentWidth) >> 1, 
+					(300 - imgPlanetImage.contentHeight) >> 1 );
+				bmpData.draw(imgPlanetImage, matrix);
+				
+				// Encode the snapshot
+				pngEnc = new PNGEncoder();
+				encData = pngEnc.encode(bmpData);
+			}
+			
+			/** When button "OK" is clicked. */
+			private function ok():void {
+				btnOK.enabled = false;
+				
+				if ( optCustom.selected ) {
+					transcode();
+					planetRemote.setCustomPlanetImage(planet, encData);
+				} else {
+					planetRemote.setDefaultPlanetImage(planet);
+				}
+			}
+			
+			/** Close this form. */
+			private function close():void {
+				PopUpManager.removePopUp(this);
+			}
+			
+			/** Handles planetRemote.getPlanetByID(). */
+			private function _getPlanetByID(e:ResultEvent):void {
+				planet = e.result as PlanetVO;
+			}
+			
+			/** Handles planetRemote.setDefaultPlanetImage(). */
+			private function _setDefaultPlanetImage(e:ResultEvent):void {
+				var isSuccess:Boolean = e.result as Boolean;
+				
+				if (isSuccess) {
+					Alert.show("Default planet image is set.", "Edit account > Planet image");
+					
+					// Update application planet.
+					var id:int = planet.id;
+					planet = null;
+					planetRemote.getPlanetByID(id);
+					callLater(_close);
+					
+					return;
+				} else {
+					Alert.show("Operation failed.", "Edit account > Planet image");
+					btnOK.enabled = true;
+				}
+			}
+			
+			/** Handles planetRemote.setCustomPlanetImage(). */
+			private function _setCustomPlanetImage(e:ResultEvent):void {
+				var isSuccess:Boolean = e.result as Boolean;
+				
+				if (isSuccess) {
+					Alert.show("Customized planet image is set.", "Edit account > Planet image");
+					
+					// Update application planet.
+					var id:int = planet.id;
+					planet = null;
+					planetRemote.getPlanetByID(id);
+					callLater(_close);
+					
+					return;
+				} else {
+					Alert.show("Operation failed.", "Edit account > Planet image");
+					btnOK.enabled = true;
+				}
+			}
+			
+			private function _close():void {
+				if (planet == null) {
+					callLater(_close);
+					return;
+				}
+				
+				Application.application.currentUser.image_url = planet.image_url;
+				close();
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- COMPONENTS -->
+	<mx:Form>
+		<mx:FormItem label="Planet image type">
+			<mx:RadioButton id="optDefault" label="Default" click="radioChange();" styleName="radioButton" />
+			<mx:RadioButton id="optCustom" label="User customized" click="radioChange();" styleName="radioButton" />
+		</mx:FormItem>
+		
+		<mx:FormItem id="itemOption" label="File">
+			<mx:TextInput id="txtFilename" width="100%" editable="false" />
+			<mx:Button label="Browse" click="fileRef.browse(fileFilters);" />
+			<mx:Label text="Best resolution is 300x300." />
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:Form>
+		<mx:FormHeading label="Preview" />
+		<mx:Image id="imgPlanetImage" width="300" height="300" visible="true" />
+	</mx:Form>
+	
+	<mx:ControlBar width="100%" horizontalAlign="right">
+		<mx:Button id="btnOK" label="OK" click="ok();" />
+		<mx:Button label="Cancel" click="close();" />
+	</mx:ControlBar>
+	
+	<!-- REMOTE OBJECTS -->
+	<mx:RemoteObject id="planetRemote" destination="zend" source="PlanetService" fault="InventionUniverse.remoteFaultListener(event)" showBusyCursor="true">
+		<mx:method name="getPlanetByID" result="_getPlanetByID(event);" />
+		<mx:method name="setDefaultPlanetImage" result="_setDefaultPlanetImage(event);" />
+		<mx:method name="setCustomPlanetImage" result="_setCustomPlanetImage(event);" />
+	</mx:RemoteObject>
+</mx:Panel>

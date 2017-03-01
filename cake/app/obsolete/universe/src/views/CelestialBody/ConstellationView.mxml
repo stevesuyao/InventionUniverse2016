@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The view for a single constellation.
+-->
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" cachePolicy="on">	
+	<mx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import models.CelestialBody.ConstellationVO;
+			import models.CelestialBody.GalaxyVO;
+			import mx.controls.Image;
+			import mx.controls.Label;
+			import mx.effects.Move;
+			import mx.effects.easing.Cubic;
+			import mx.events.EffectEvent;
+			
+			// Bound width/height specifies a bounding box in which this view will be randomly placed.
+			public static const BOUND_WIDTH:int = 250;
+			public static const BOUND_HEIGHT:int = 250;
+			
+			public static const WIDTH:int = 250;
+			
+			public static const IMAGE_WIDTH:int = 100;
+			public static const IMAGE_HEIGHT:int = 100;
+
+			[Bindable]
+			private var constellation: ConstellationVO;
+			
+			public function init(constellation:ConstellationVO, initialX:int, initialY:int):void {
+				this.constellation = constellation;
+				
+				this.x = initialX;
+				this.y = initialY;
+				
+				callLater(initLater);
+			}
+			
+			// Add event listeners, etc.
+			private function initLater():void {
+				var centerX:Number = x + WIDTH/2;
+				var centerY:Number = y + IMAGE_HEIGHT/2;
+				
+				image.addEventListener(MouseEvent.MOUSE_DOWN, 
+					function():void { 
+						Application.application.testRangeAndZoomIn(centerX, centerY, constellation); 
+					});	
+					
+				// Rocket targeting.
+				image.addEventListener(MouseEvent.MOUSE_OVER,
+					function():void {
+						Application.application.rocket.setTarget(centerX, centerY, constellation);
+					});
+				image.addEventListener(MouseEvent.MOUSE_OUT,
+					function():void {
+				 		Application.application.rocket.unsetTarget();
+					});
+			}
+			
+			/** Toggles the transition animation for the description panel. */
+			private function toggleDescription(e:MouseEvent):void {
+				var isRollOver:Boolean = (e.type == MouseEvent.ROLL_OVER);;
+
+				fadeDescription.easingFunction = 
+					moveDescription.easingFunction = isRollOver ? Cubic.easeOut : Cubic.easeIn;
+
+				// After the panel fades/moves out we want to make it invisible, vice versa.
+				// Prevents the panel from obscuring other components (i.e. planets).
+				if (isRollOver) {
+					description.visible = true;
+					effectDescription.removeEventListener(EffectEvent.EFFECT_END, hideDescription);
+				} else {
+					effectDescription.addEventListener(EffectEvent.EFFECT_END, hideDescription);
+				}
+				
+				if (effectDescription.isPlaying) {
+					effectDescription.reverse();
+				} else {
+					effectDescription.play([description], !isRollOver);
+				}
+			}
+			
+			private function hideDescription(e:Event):void {
+				description.visible = false;
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Image id="image" 
+		source="{constellation.image_url}"
+		x="{WIDTH/2 - IMAGE_WIDTH/2}"
+		width="{IMAGE_WIDTH}" height="{IMAGE_HEIGHT}" 
+		useHandCursor="true" buttonMode="true" mouseChildren="true"
+		maintainAspectRatio="false" 
+		rollOver="toggleDescription(event);" rollOut="toggleDescription(event);" />
+		
+	<mx:Label
+		text="{constellation.name}"
+		width="100%"
+		textAlign="center"
+		y="{IMAGE_HEIGHT}"
+		color="#CC33FF" />
+		
+	<mx:Panel id="description" 
+		title="{constellation.name}"
+		width="{WIDTH}"
+		y="{IMAGE_HEIGHT/2 + 90}"
+		visible="false">
+		<mx:Text id="txtConstellation" width="100%" text="{constellation.description}" />
+	</mx:Panel>
+		
+	<mx:Parallel id="effectDescription" suspendBackgroundProcessing="true">
+		<mx:Fade id="fadeDescription" alphaFrom="0.0" alphaTo="1.0" />
+		<mx:Move id="moveDescription" yFrom="{IMAGE_HEIGHT/2 + 90}" yTo="{IMAGE_HEIGHT/2 + 60}" />
+	</mx:Parallel>
+	
+</mx:Canvas>

@@ -1,0 +1,1043 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The user view (with user's planet and four satellites, etc.).
+-->
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" autoLayout="false" cachePolicy="on">
+	
+	<mx:Style>
+		.heading {
+			fontSize: 16;
+			fontWeight: bold;
+			color: white;
+			textAlign: center;
+		}
+		.description {
+			color: white;
+			textAlign: right;
+		}
+		.bold { fontWeight: bold; }
+		.normal { fontWeight: normal; }
+	</mx:Style>
+	
+	<mx:Script>
+		<![CDATA[
+			import models.Comment.CommentVO;
+			import views.Renderer.ProjectListNameRenderer;
+			import mx.events.EffectEvent;
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.collections.ArrayCollection;
+			import mx.rpc.events.ResultEvent;
+			import models.CelestialBody.PlanetVO;
+			import mx.core.Application;
+			import flash.net.navigateToURL;
+			import flash.net.URLRequest;
+			import models.Project.ProjectVO;
+			import models.Skill.SkillVO;
+			import mx.events.StateChangeEvent;
+			import helpers.MouseOverZoom;
+			import mx.effects.easing.Cubic;
+			import mx.events.CloseEvent;
+			
+			public static const PLANET_WIDTH:int = 200;
+			public static const PLANET_HEIGHT:int = 200;
+			
+			public static const SATELLITE_WIDTH:int = 50;
+			public static const SATELLITE_HEIGHT:int = 50;
+			
+			/** Space between satellites and planets. */
+			public static const SATELLITE_PADDING:int = 160;
+			/** Satellite rotation rate. @see moveSatellites(). */
+			public static const SATELLITE_ORBIT_SPEED:Number = 0.4 * Math.PI / 180.0;
+			
+			/** Resize multiplier for zoomed-in planet view. */
+			public static const ZOOM_FACTOR:int = 3;
+			
+			public static const PLANET_LARGE_WIDTH:int = PLANET_WIDTH * ZOOM_FACTOR;
+			public static const PLANET_LARGE_HEIGHT:int = PLANET_HEIGHT * ZOOM_FACTOR;
+			
+			public static const SATELLITE_LARGE_WIDTH:int = SATELLITE_WIDTH * ZOOM_FACTOR;
+			public static const SATELLITE_LARGE_HEIGHT:int = SATELLITE_HEIGHT * ZOOM_FACTOR;
+			
+			private var isSatelliteRotation:Boolean = true;
+			
+			[Bindable] private var planet:PlanetVO;
+			
+			[Bindable] private var projects:ArrayCollection; /* of ProjectVO */
+			[Bindable] private var skills:ArrayCollection; /* of SkillVO */
+			[Bindable] private var comments:ArrayCollection; /* of CommentVO */
+			
+			// Current rotation.
+			private var satelliteRotationRadians:Number = 0;
+			
+			// Compass directions below refer to the position coordinates of satellites in the zoomed-in planet view.
+			[Bindable] private var northX:Number;
+			[Bindable] private var northY:Number;			
+			[Bindable] private var eastX:Number;
+			[Bindable] private var eastY:Number;			
+			[Bindable] private var southX:Number;
+			[Bindable] private var southY:Number;
+			[Bindable] private var westX:Number;
+			[Bindable] private var westY:Number;
+			
+			// Mouse-over effects for satellites.
+			private var mozBiography:MouseOverZoom;
+			private var mozProjects:MouseOverZoom;
+			private var mozSkills:MouseOverZoom;
+			private var mozResume:MouseOverZoom;
+			
+			/** The state corrersponding to the satellite last clicked on while in a zoomed-out view. @see restore(). */
+			private var lastClickedSatellite:String;
+			
+			public function init(planet:PlanetVO):void {
+				this.planet = planet;
+				
+				// Initialize position variables for zoomed-in view.
+				updateZoomedPositions(null);
+				
+				// Adjust satellite position on window resize.
+				Application.application.addEventListener(Event.RESIZE, moveSatellites); // For non-zoomed view.
+				Application.application.addEventListener(Event.RESIZE, updateZoomedPositions); // For zoomed-in view.
+				
+				// Following three attributes shows hand cursor on mouseOver.
+				this.useHandCursor 	= true; 
+				this.buttonMode 		= true;
+				this.mouseChildren 	= true;
+				
+				// Set up for components that might not be created yet.
+				callLater(initLater);
+				
+				// Retrieve other data of this user, i.e. projects, skills, etc.
+				projectRemote.getProjectsByParentID(planet.id);
+				skillRemote.getSkillsByParentID(planet.id);
+				commentRemote.getCommentsByPlanetID(planet.id);
+			}
+			
+			private function initLater():void {
+				// Set default avatar if user doesn't have one.
+				if (planet.avatar_url == null || planet.avatar_url == "") {
+					imgAvatar.load("assets/images/astronaut.jpg");
+				} else { 
+					imgAvatar.load(planet.avatar_url);
+				}
+
+				// Move to initial positions.
+				moveSatellites(null);
+				
+				// Mouse over effects for satellites.
+				var effect:Number = 1.5;
+				mozBiography = new MouseOverZoom(effect, imgBiography);
+				mozBiography.setEasingFunctions(Cubic.easeIn, Cubic.easeOut);
+				
+				mozProjects = new MouseOverZoom(effect, imgProjects);
+				mozProjects.setEasingFunctions(Cubic.easeIn, Cubic.easeOut);
+				
+				mozSkills = new MouseOverZoom(effect, imgSkills);
+				mozSkills.setEasingFunctions(Cubic.easeIn, Cubic.easeOut);
+				
+				mozResume = new MouseOverZoom(effect, imgResume);
+				mozResume.setEasingFunctions(Cubic.easeIn, Cubic.easeOut);
+				
+				// TODO Rotate satellites when mouse moves over planet image, only in base state.
+			}
+			
+			/** Rotates satellite positions. */
+			private function moveSatellites(e:Event):void {
+				if (currentState != null && currentState != '') {
+					return;
+				}
+				
+				var centerX:Number = Application.application.width/2 - SATELLITE_WIDTH/2;
+				var centerY:Number = Application.application.height/2 - SATELLITE_HEIGHT/2 - 80;
+				
+				// Biography.
+				imgBiography.x = centerX + Math.sin(satelliteRotationRadians) * SATELLITE_PADDING;
+				imgBiography.y = centerY - Math.cos(satelliteRotationRadians) * SATELLITE_PADDING;
+				
+				lblBiography.x = imgBiography.x;
+				lblBiography.y = imgBiography.y + SATELLITE_HEIGHT;
+				
+				// Projects.
+				imgProjects.x = centerX + Math.sin(satelliteRotationRadians + Math.PI / 2) * SATELLITE_PADDING;
+				imgProjects.y = centerY - Math.cos(satelliteRotationRadians + Math.PI / 2) * SATELLITE_PADDING;
+				
+				lblProjects.x = imgProjects.x;
+				lblProjects.y = imgProjects.y + SATELLITE_HEIGHT;
+				
+				// Skills.
+				imgSkills.x = centerX + Math.sin(satelliteRotationRadians + Math.PI) * SATELLITE_PADDING;
+				imgSkills.y = centerY - Math.cos(satelliteRotationRadians + Math.PI) * SATELLITE_PADDING;
+				
+				lblSkills.x = imgSkills.x;
+				lblSkills.y = imgSkills.y + SATELLITE_HEIGHT;
+				
+				// Resume.
+				imgResume.x = centerX + Math.sin(satelliteRotationRadians + 3 * Math.PI / 2) * SATELLITE_PADDING;
+				imgResume.y = centerY - Math.cos(satelliteRotationRadians + 3 * Math.PI / 2) * SATELLITE_PADDING;
+				
+				lblResume.x = imgResume.x;
+				lblResume.y = imgResume.y + SATELLITE_HEIGHT;
+				
+				// Increase rotation.
+				satelliteRotationRadians += SATELLITE_ORBIT_SPEED; 
+			}
+			
+			/** Updates position values of planet and satellites in zoomed-in view. */
+			private function updateZoomedPositions(e:Event):void {
+				var centerX:Number = Application.application.width/2 - SATELLITE_LARGE_WIDTH/2;
+				var centerY:Number = Application.application.height - SATELLITE_LARGE_HEIGHT/2;
+				
+				var padding:Number = SATELLITE_PADDING / ZOOM_FACTOR;
+				
+				northX = southX = centerX;
+				northY = Application.application.height - PLANET_LARGE_HEIGHT/2 - SATELLITE_LARGE_HEIGHT - padding;
+				southY = Application.application.height + PLANET_LARGE_HEIGHT/2 + padding;
+				
+				westX = Application.application.width/2 - PLANET_LARGE_WIDTH/2 - SATELLITE_LARGE_WIDTH - padding;
+				eastX = Application.application.width/2 + PLANET_LARGE_WIDTH/2 + padding;
+				westY = eastY = centerY;
+				
+				// Flex binding doesn't work on non-base view states so we have to do it manually here.		
+				// Position of the planet image is also dependent on satellite position because of 
+				// the rotation (e.g. in "projects" view the planet is rotated 90 degrees CCW, which 
+				// puts its coordinate origin in the bottom-left corner as opposed to the top-left corner in canonical view).		
+				if (currentState == "biography") {
+					imgPlanet.x = Application.application.width/2 - PLANET_LARGE_WIDTH/2;
+					imgPlanet.y = Application.application.height - PLANET_LARGE_HEIGHT/2;
+					
+					imgBiography.x = northX;
+					imgBiography.y = northY;
+					
+					imgProjects.x = eastX;
+					imgProjects.y = eastY;
+					
+					imgSkills.x = southX;
+					imgSkills.y = southY;
+					
+					imgResume.x = westX;
+					imgResume.y = westY;
+				} else if (currentState == "projects") {
+					imgPlanet.x = Application.application.width/2 - PLANET_LARGE_WIDTH/2;
+					imgPlanet.y = Application.application.height + PLANET_LARGE_HEIGHT/2;
+					
+					imgBiography.x = westX;
+					imgBiography.y = westY;
+					
+					imgProjects.x = northX;
+					imgProjects.y = northY;
+					
+					imgSkills.x = eastX;
+					imgSkills.y = eastY;
+					
+					imgResume.x = southX;
+					imgResume.y = southY;
+				} else if (currentState == "skills") {
+					imgPlanet.x = Application.application.width/2 + PLANET_LARGE_WIDTH/2;
+					imgPlanet.y = Application.application.height + PLANET_LARGE_HEIGHT/2;
+					
+					imgBiography.x = southX;
+					imgBiography.y = southY;
+					
+					imgProjects.x = westX;
+					imgProjects.y = westY;
+					
+					imgSkills.x = northX;
+					imgSkills.y = northY;
+					
+					imgResume.x = eastX;
+					imgResume.y = eastY;
+				} else if (currentState == "resume") {
+					imgPlanet.x = Application.application.width/2 + PLANET_LARGE_WIDTH/2;
+					imgPlanet.y = Application.application.height - PLANET_LARGE_HEIGHT/2;
+					
+					imgBiography.x = eastX;
+					imgBiography.y = eastY;
+					
+					imgProjects.x = southX;
+					imgProjects.y = southY;
+					
+					imgSkills.x = westX;
+					imgSkills.y = westY;
+					
+					imgResume.x = westY;
+					imgResume.y = northY;
+				}
+			}
+
+			/** Cycles states in the reverse direction. Only applicable if in the "zoomed" planet state. */
+			private function reverseState():void {
+				if (currentState == "biography") {
+					currentState = "resume";
+				} else if (currentState == "projects") {
+					currentState = "biography";
+				} else if (currentState == "skills") {
+					currentState = "projects";
+				} else if (currentState == "resume") {
+					currentState = "skills";
+				}
+			}
+			
+			/** Cycles states in the forward direction. Only applicable if in the "zoomed" planet state. */
+			private function forwardState():void {
+				if (currentState == "biography") {
+					currentState = "projects";
+				} else if (currentState == "projects") {
+					currentState = "skills";
+				} else if (currentState == "skills") {
+					currentState = "resume";
+				} else if (currentState == "resume") {
+					currentState = "biography";
+				}
+			}
+			
+			/** Transition to a specified view state. */
+			public function changeState(state:String):void {
+				if (currentState == state) {
+					return;
+				}
+				
+				// If we are zooming in, disable MouseOverZoom effects for satellites.
+				if (currentState == "" || currentState == null) {
+					mozBiography.disable();
+					mozProjects.disable();
+					mozSkills.disable();
+					mozResume.disable();
+					
+					// Store which satellite we clicked on while zooming in - @see restore().
+					lastClickedSatellite = state;
+				}
+				
+				currentState = state;
+			}
+			
+			/** Enables MouseOverZoom effect for all satellites, and reverts a single MoZ effect. */
+			private function restore():void {
+				// This shrinks back to original form ALL satellites.
+				// Since the satellite that we clicked on is zoomed (has larger scaleX and scaleY values) 
+				// compared to its neighbors. If we don't do this then the scaleX/Y values get messed up.
+				if (lastClickedSatellite == "biography") {
+					mozBiography.restore();
+				} else if (lastClickedSatellite == "projects") {
+					mozProjects.restore();
+				} else if (lastClickedSatellite == "skills") {
+					mozSkills.restore();
+				} else if (lastClickedSatellite == "resume") {
+					mozResume.restore();
+				}
+				
+				// Re-enable event listening for effects.
+				mozBiography.enable();
+				mozProjects.enable();
+				mozSkills.enable();
+				mozResume.enable();
+			}
+			
+			private function _getProjectsByParentID(e:ResultEvent):void {
+				projects = new ArrayCollection(e.result as Array); /* of ProjectVO */
+			}
+			
+			private function _getSkillsByParentID(e:ResultEvent):void {	
+				skills = new ArrayCollection(e.result as Array); /* of SkillVO */
+			}
+			
+			private function _getCommentsByPlanetID(e:ResultEvent):void {				
+				comments = new ArrayCollection(e.result as Array); /* of CommentVO */
+			}
+			
+			private function _putComment(e:ResultEvent):void {
+				var isSuccess:Boolean = e.result as Boolean;
+				
+				if (!isSuccess) {
+					Alert.show(InventionUniverse.NULL_RETURN_ERROR, "Invention Universe > Comment");
+					return;
+				}
+				
+				Alert.show("Comment successfully added!", "Invention Universe > Comment");
+				
+				// Refresh comments grid.
+				commentRemote.getCommentsByPlanetID(planet.id);
+			}
+			
+			private function _deleteCommentByID(e:ResultEvent):void {
+				var isSuccess:Boolean = e.result as Boolean;
+				
+				if (!isSuccess) {
+					Alert.show(InventionUniverse.NULL_RETURN_ERROR, "Invention Universe > Comment");
+					return;
+				}
+				
+				Alert.show("Comment successfully deleted!", "Invention Universe > Comment");
+				
+				// Refresh comments grid.
+				commentRemote.getCommentsByPlanetID(planet.id);
+			}
+			
+			private function downloadProject(e:ListEvent):void {
+				var project:ProjectVO = ProjectVO(e.currentTarget.selectedItem);
+				
+				if (project.type == "Scratch") {
+					// Open Scratch projects in special applet window.
+					navigateToURL(new URLRequest("../uploads/scratch.html?" + "projects/" + project.parent_id + "/" + project.id), "_blank");
+				} else {
+					navigateToURL(new URLRequest(InventionUniverse.UPLOADS_PATH + project.url));
+				}
+				
+				// Increment the project view count via remoting.
+				monitoringRemote.incrementProjectViewCount(project.id);
+			}
+			
+			/** Open resume URL in a new window, if this user has one. */
+			private function downloadResume():void {
+				if (planet.resume_url != null) {
+					navigateToURL(new URLRequest(InventionUniverse.UPLOADS_PATH + planet.resume_url));
+				} else {
+					Alert.show("This user has not yet uploaded a resume!", "Invention Universe > Resume");
+				}
+			}
+			
+			private function addComment():void {
+				var user:PlanetVO = Application.application.currentUser;
+				if (user == null) {
+					Alert.show("You need to be logged in to add a comment!", "Invention Universe > Comment");
+					return;
+				}
+				
+				if (txtComment.text == "") {
+					Alert.show("Please type in your comment in the box to the left.", "Invention Universe > Comment");
+					return;
+				}
+				
+				if (txtComment.length > 255) {
+					Alert.show("Your comment is too long! (Max. 255 characters)", "Invention Universe > Comment");
+					return;
+				}
+				
+				commentRemote.putComment(planet.id, user.id, txtComment.text);
+			}
+			
+			private function deleteComment(e:ListEvent):void {
+				// Must be logged in and at home to delete a comment.
+				if (Application.application.currentUser == null || Application.application.currentUser.id != planet.id) {
+					return;
+				}
+				
+				var comment:CommentVO = CommentVO(e.currentTarget.selectedItem);
+				
+				Alert.show(
+					'Are you sure you want to delete this comment?', 
+					'Invention Universe > Comments', 
+					Alert.YES | Alert.NO, 
+					this, 
+					function(e:CloseEvent):void { if (e.detail == Alert.YES) commentRemote.deleteCommentByID(comment.id); }
+					);
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- COMPONENTS -->
+	<mx:Image id="imgPlanet" 
+	  source="{planet.image_url}"
+		x="{Application.application.width/2 - PLANET_WIDTH/2}" 
+		y="{Application.application.height/2 - PLANET_HEIGHT/2 - 80}" 
+		width="{PLANET_WIDTH}" height="{PLANET_HEIGHT}"
+		maintainAspectRatio="false" />
+	
+	<mx:Label id="lblName" 
+	  text="{planet.name}"
+		x="{Application.application.width/2 - 150}" y="{imgPlanet.y + PLANET_HEIGHT}" 
+		width="300" 
+		styleName="heading" 
+		visible="true" />
+	
+	<mx:Panel id="panelAvatar" 
+		x="{imgPlanet.x - 128 - 200}" y="{imgPlanet.y + 30}" 
+	  headerHeight="5">
+		<mx:Image id="imgAvatar" width="128" height="128" visible="true" />	
+	</mx:Panel>
+	
+	<mx:Panel id="panelComments" 
+		title="Comments" 
+		width="300" height="400" 
+		x="{imgPlanet.x + PLANET_WIDTH + 100}" y="{imgPlanet.y - 100}" 
+		visible="true">
+		<mx:DataGrid id="gridComments" 
+			width="100%" height="100%" 
+			dataProvider="{comments}" 
+			variableRowHeight="true"
+		  itemClick="deleteComment(event);">
+			<mx:columns>
+				<mx:DataGridColumn headerText="What'd they say?" dataField="text" wordWrap="true" />
+				<mx:DataGridColumn headerText="Author" dataField="author" width="80" />
+			</mx:columns>		
+		</mx:DataGrid>
+		<mx:HBox>
+			<mx:TextInput id="txtComment" width="160" />
+			<mx:Button id="btnComment" label="Add comment!" click="addComment();" />
+		</mx:HBox>
+	</mx:Panel>
+	
+	<mx:Image id="imgBiography" 
+		source="assets/images/satellite_biography.png" 
+		width="{SATELLITE_WIDTH}" height="{SATELLITE_HEIGHT}" 
+		click="changeState('biography');" 
+		maintainAspectRatio="false" />
+	<mx:Label id="lblBiography" text="Biography" visible="true" />
+	
+	<mx:Image id="imgProjects" 
+		source="assets/images/satellite_projects.png" 
+		width="{SATELLITE_WIDTH}" height="{SATELLITE_HEIGHT}" 
+		click="changeState('projects');" 
+		maintainAspectRatio="false" />
+	<mx:Label id="lblProjects" text="Projects" visible="true" />
+				
+	<mx:Image id="imgSkills" 
+		source="assets/images/satellite_skills.png" 
+		width="{SATELLITE_WIDTH}" height="{SATELLITE_HEIGHT}" 
+		click="changeState('skills');"  
+		maintainAspectRatio="false" />
+	<mx:Label id="lblSkills" text="Skills" visible="true" />
+	
+	<mx:Image id="imgResume" 
+		source="assets/images/satellite_resume.png" 
+		width="{SATELLITE_WIDTH}" height="{SATELLITE_HEIGHT}" 
+		click="changeState('resume');"  
+		maintainAspectRatio="false" />
+	<mx:Label id="lblResume" text="Resume" visible="true" />
+
+	<!-- STATES -->
+	<mx:states>
+		<!-- Base state for a zoomed-in planet view. Only serves as a template for children states. -->
+		<mx:State name="zoomed">
+			<mx:AddChild>
+				<mx:Image id="forward" 
+					source="assets/swf/planet_arrow.swf" 
+					x="{Application.application.width/2 + 300}" y="{Application.application.height/2}" 
+					width="100" height="100"
+				  click="forwardState();" />
+			</mx:AddChild>
+			<mx:AddChild>
+				<mx:Image id="reverse" 
+					source="assets/swf/planet_arrow.swf"
+				  rotation="180"
+					x="{Application.application.width/2 - 300}" y="{Application.application.height/2 + 100}" 
+					width="100" height="100"
+					click="reverseState();" />
+			</mx:AddChild>
+
+			<!-- Expand planet image (movement in children states). -->
+			<mx:SetProperty target="{imgPlanet}" name="x" value="{Application.application.width/2 - PLANET_LARGE_WIDTH/2}" />
+			<mx:SetProperty target="{imgPlanet}" name="y" value="{Application.application.height - PLANET_LARGE_HEIGHT/2 + 50}" />
+			<mx:SetProperty target="{imgPlanet}" name="width" value="{PLANET_LARGE_WIDTH}" />
+			<mx:SetProperty target="{imgPlanet}" name="height" value="{PLANET_LARGE_HEIGHT}" />
+			
+			<!-- Expand satellite images. -->
+			<mx:SetProperty target="{imgBiography}" name="width" value="{SATELLITE_LARGE_WIDTH}" />
+			<mx:SetProperty target="{imgBiography}" name="height" value="{SATELLITE_LARGE_HEIGHT}" />		
+			<mx:SetProperty target="{imgProjects}" name="width" value="{SATELLITE_LARGE_WIDTH}" />
+			<mx:SetProperty target="{imgProjects}" name="height" value="{SATELLITE_LARGE_HEIGHT}" />		
+			<mx:SetProperty target="{imgSkills}" name="width" value="{SATELLITE_LARGE_WIDTH}" />
+			<mx:SetProperty target="{imgSkills}" name="height" value="{SATELLITE_LARGE_HEIGHT}" />	
+			<mx:SetProperty target="{imgResume}" name="width" value="{SATELLITE_LARGE_WIDTH}" />
+			<mx:SetProperty target="{imgResume}" name="height" value="{SATELLITE_LARGE_HEIGHT}" />
+			
+			<!-- Remove misc. text. -->
+			<mx:SetProperty target="{lblName}" name="visible" value="false" />
+			<mx:SetProperty target="{panelAvatar}" name="visible" value="false" />
+			<mx:SetProperty target="{panelComments}" name="visible" value="false" />
+			<mx:SetProperty target="{lblBiography}" name="visible" value="false" />
+			<mx:SetProperty target="{lblProjects}" name="visible" value="false" />
+			<mx:SetProperty target="{lblSkills}" name="visible" value="false" />
+			<mx:SetProperty target="{lblResume}" name="visible" value="false" />
+		</mx:State>
+		
+		<!-- Biography is being viewed. -->
+		<mx:State name="biography" basedOn="zoomed">		
+			<mx:SetProperty target="{imgBiography}" name="x" value="{northX}" />
+			<mx:SetProperty target="{imgBiography}" name="y" value="{northY}" />
+			
+			<mx:SetProperty target="{imgProjects}" name="x" value="{eastX}" />
+			<mx:SetProperty target="{imgProjects}" name="y" value="{eastY}" />
+			
+			<mx:SetProperty target="{imgSkills}" name="x" value="{southX}" />
+			<mx:SetProperty target="{imgSkills}" name="y" value="{southY}" />
+			
+			<mx:SetProperty target="{imgResume}" name="x" value="{westX}" />
+			<mx:SetProperty target="{imgResume}" name="y" value="{westY}" />
+			
+			<mx:AddChild>
+				<mx:Panel id="panelBiography" title="Biography" width="400" height="300" x="{northX - 200 + SATELLITE_LARGE_WIDTH/2}" y="{20}" alpha="0.0">
+					<mx:Form>
+						<mx:FormHeading label="{planet.first_name}'s Planet" />
+						
+						<mx:FormItem label="E-mail" styleName="bold">
+							<mx:Label text="{planet.email}" styleName="normal" />
+						</mx:FormItem>
+						
+						<mx:FormItem label="Hometown" styleName="bold">
+							<mx:Label text="{planet.hometown}" styleName="normal" />
+						</mx:FormItem>
+						
+						<mx:FormItem label="School" styleName="bold">
+							<mx:Label text="{planet.school}" styleName="normal" />
+						</mx:FormItem>
+						
+						<mx:FormItem label="Hobbies" styleName="bold">
+							<mx:Label text="{planet.hobbies}" styleName="normal" />						
+						</mx:FormItem>
+						
+						<mx:FormItem label="Heroes" styleName="bold">
+							<mx:Label text="{planet.heroes}" styleName="normal" />							
+						</mx:FormItem>
+						
+						<mx:FormItem label="Interests" styleName="bold">
+							<mx:Label text="{planet.interests}" styleName="normal" />
+						</mx:FormItem>
+						
+						<mx:FormItem label="Goals" styleName="bold">
+							<mx:Label text="{planet.goals}" styleName="normal" />
+						</mx:FormItem>
+					</mx:Form>
+				</mx:Panel>
+			</mx:AddChild>
+		</mx:State>
+		
+		<!-- Projects is being viewed. -->
+		<mx:State name="projects" basedOn="zoomed">
+			<mx:SetProperty target="{imgBiography}" name="x" value="{westX}" />
+			<mx:SetProperty target="{imgBiography}" name="y" value="{westY}" />
+			
+			<mx:SetProperty target="{imgProjects}" name="x" value="{northX}" />
+			<mx:SetProperty target="{imgProjects}" name="y" value="{northY}" />
+			
+			<mx:SetProperty target="{imgSkills}" name="x" value="{eastX}" />
+			<mx:SetProperty target="{imgSkills}" name="y" value="{eastY}" />
+		
+			<mx:SetProperty target="{imgResume}" name="x" value="{southX}" />
+			<mx:SetProperty target="{imgResume}" name="y" value="{southY}" />
+			
+			<mx:AddChild>
+				<mx:Panel id="panelProjects" title="Projects" width="600" height="400" x="{northX - 300 + SATELLITE_LARGE_WIDTH/2}" y="{20}" alpha="0.0">
+					<mx:Label text="Click on a project to download it!" />
+					<mx:DataGrid width="100%" height="100%" dataProvider="{projects}" itemClick="downloadProject(event)" variableRowHeight="true">
+						<mx:columns>
+							<mx:DataGridColumn headerText="Name" dataField="name" width="160" itemRenderer="views.Renderer.ProjectListNameRenderer" />
+							<mx:DataGridColumn headerText="Type" dataField="type" width="80" />
+							<mx:DataGridColumn headerText="Description" dataField="description" wordWrap="true"/>
+						</mx:columns>
+					</mx:DataGrid>				
+				</mx:Panel>				
+			</mx:AddChild>
+		</mx:State>
+		
+		<!-- Skills is being viewed. -->
+		<mx:State name="skills" basedOn="zoomed">
+			<mx:SetProperty target="{imgBiography}" name="x" value="{southX}" />
+			<mx:SetProperty target="{imgBiography}" name="y" value="{southY}" />
+			
+			<mx:SetProperty target="{imgProjects}" name="x" value="{westX}" />
+			<mx:SetProperty target="{imgProjects}" name="y" value="{westY}" />
+			
+			<mx:SetProperty target="{imgSkills}" name="x" value="{northX}" />
+			<mx:SetProperty target="{imgSkills}" name="y" value="{northY}" />
+		
+			<mx:SetProperty target="{imgResume}" name="x" value="{eastX}" />
+			<mx:SetProperty target="{imgResume}" name="y" value="{eastY}" />
+			
+			<mx:AddChild>
+				<mx:Panel id="panelSkills" title="Skills" width="500" height="400" x="{northX - 250 + SATELLITE_LARGE_WIDTH/2}" y="{20}" alpha="0.0">
+					<mx:DataGrid dataProvider="{skills}" width="100%" height="100%" variableRowHeight="true" selectable="false">
+						<mx:columns>
+							<mx:DataGridColumn headerText="Type" dataField="type" width="120" />
+							<mx:DataGridColumn headerText="Name" dataField="name" wordWrap="true" />
+							<mx:DataGridColumn headerText="Level" dataField="level" width="100" />
+						</mx:columns>
+					</mx:DataGrid>
+				</mx:Panel>
+			</mx:AddChild>
+		</mx:State>
+		
+		<!-- Resume is being viewed. -->
+		<mx:State name="resume" basedOn="zoomed">
+			<mx:SetProperty target="{imgBiography}" name="x" value="{eastX}" />
+			<mx:SetProperty target="{imgBiography}" name="y" value="{eastY}" />
+			
+			<mx:SetProperty target="{imgProjects}" name="x" value="{southX}" />
+			<mx:SetProperty target="{imgProjects}" name="y" value="{southY}" />
+			
+			<mx:SetProperty target="{imgSkills}" name="x" value="{westX}" />
+			<mx:SetProperty target="{imgSkills}" name="y" value="{westY}" />
+		
+			<mx:SetProperty target="{imgResume}" name="x" value="{northX}" />
+			<mx:SetProperty target="{imgResume}" name="y" value="{northY}" />
+			
+			<mx:AddChild>
+				<mx:Panel id="panelResume" title="Resume" width="200" height="80" x="{northX - 100 + SATELLITE_LARGE_WIDTH/2}" y="{20}" alpha="0.0">
+					<mx:Button label="Download resume!" width="100%" height="100%" click="downloadResume();" />		
+				</mx:Panel>
+			</mx:AddChild>
+		</mx:State>
+	</mx:states>
+	
+	<!-- TRANSITIONS -->
+	<mx:transitions>
+		<!-- Zooming in. -->
+		<mx:Transition fromState="" toState="biography">
+			<mx:Sequence				
+				targets="{[imgPlanet, imgBiography, imgProjects, imgSkills, imgResume, panelAvatar,
+									lblName, lblBiography, lblProjects, lblSkills, lblResume,
+									panelBiography, panelProjects, panelResume, panelSkills]}" 
+				suspendBackgroundProcessing="true">
+				<mx:SetPropertyAction name="visible" />
+				<mx:Parallel>
+					<mx:Move filter="resize" easingFunction="{Cubic.easeIn}" />
+					<mx:Resize filter="resize" easingFunction="{Cubic.easeIn}" />
+	
+					<mx:Blur filter="hide" duration="1000" />
+					<mx:Fade filter="hide" alphaFrom="1.0" alphaTo="0.0" />
+					
+					<mx:Fade filter="add" alphaFrom="0.0" alphaTo="1.0" />
+				</mx:Parallel>
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<mx:Transition fromState="" toState="projects">
+			<mx:Sequence				
+				targets="{[imgPlanet, imgBiography, imgProjects, imgSkills, imgResume, 
+									lblName, lblBiography, lblProjects, lblSkills, lblResume,
+									panelBiography, panelProjects, panelResume, panelSkills]}" 
+				suspendBackgroundProcessing="true">
+				<mx:SetPropertyAction name="visible" />
+				<mx:Parallel>
+					<mx:Move target="{imgBiography}" xTo="{northX}" yTo="{northY}" easingFunction="{Cubic.easeIn}" />
+					<mx:Move target="{imgProjects}" xTo="{eastX}" yTo="{eastY}" easingFunction="{Cubic.easeIn}" />
+					<mx:Move target="{imgSkills}" xTo="{southX}" yTo="{southY}" easingFunction="{Cubic.easeIn}" />
+					<mx:Move target="{imgResume}" xTo="{westX}" yTo="{westY}" easingFunction="{Cubic.easeIn}" />
+					<mx:Move target="{imgPlanet}" easingFunction="{Cubic.easeIn}" />
+					<mx:Resize filter="resize" easingFunction="{Cubic.easeIn}" />
+				</mx:Parallel>
+				<mx:Parallel>
+					<mx:Move filter="resize" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="0" angleTo="-90" />
+	
+					<mx:Blur filter="hide" duration="1000" />
+					<mx:Fade filter="hide" alphaFrom="1.0" alphaTo="0.0" />
+					
+					<mx:Fade filter="add" alphaFrom="0.0" alphaTo="1.0" />
+				</mx:Parallel>
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<mx:Transition fromState="" toState="skills">
+			<mx:Sequence				
+				targets="{[imgPlanet, imgBiography, imgProjects, imgSkills, imgResume, 
+									lblName, lblBiography, lblProjects, lblSkills, lblResume,
+									panelBiography, panelProjects, panelResume, panelSkills]}" 
+				suspendBackgroundProcessing="true">
+				<mx:SetPropertyAction name="visible" />
+				<mx:Parallel>
+					<mx:Move target="{imgBiography}" xTo="{northX}" yTo="{northY}" easingFunction="{Cubic.easeIn}" />
+					<mx:Move target="{imgProjects}" xTo="{eastX}" yTo="{eastY}" easingFunction="{Cubic.easeIn}" />
+					<mx:Move target="{imgSkills}" xTo="{southX}" yTo="{southY}" easingFunction="{Cubic.easeIn}" />
+					<mx:Move target="{imgResume}" xTo="{westX}" yTo="{westY}" easingFunction="{Cubic.easeIn}" />
+					<mx:Move target="{imgPlanet}" easingFunction="{Cubic.easeIn}" />
+					<mx:Resize filter="resize" easingFunction="{Cubic.easeIn}" />
+				</mx:Parallel>
+				<mx:Parallel>
+					<mx:Move filter="resize" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="0" angleTo="180" />
+	
+					<mx:Blur filter="hide" duration="1000" />
+					<mx:Fade filter="hide" alphaFrom="1.0" alphaTo="0.0" />
+					
+					<mx:Fade filter="add" alphaFrom="0.0" alphaTo="1.0" />
+				</mx:Parallel>
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<mx:Transition fromState="" toState="resume">
+			<mx:Sequence				
+				targets="{[imgPlanet, imgBiography, imgProjects, imgSkills, imgResume, 
+									lblName, lblBiography, lblProjects, lblSkills, lblResume,
+									panelBiography, panelProjects, panelResume, panelSkills]}" 
+				suspendBackgroundProcessing="true">
+				<mx:SetPropertyAction name="visible" />
+				<mx:Parallel>
+					<mx:Move target="{imgBiography}" xTo="{northX}" yTo="{northY}" easingFunction="{Cubic.easeIn}" />
+					<mx:Move target="{imgProjects}" xTo="{eastX}" yTo="{eastY}" easingFunction="{Cubic.easeIn}" />
+					<mx:Move target="{imgSkills}" xTo="{southX}" yTo="{southY}" easingFunction="{Cubic.easeIn}" />
+					<mx:Move target="{imgResume}" xTo="{westX}" yTo="{westY}" easingFunction="{Cubic.easeIn}" />
+					<mx:Move target="{imgPlanet}" easingFunction="{Cubic.easeIn}" />
+					<mx:Resize filter="resize" easingFunction="{Cubic.easeIn}" />
+				</mx:Parallel>
+				<mx:Parallel>
+					<mx:Move filter="resize" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="0" angleTo="90" />
+	
+					<mx:Blur filter="hide" duration="1000" />
+					<mx:Fade filter="hide" alphaFrom="1.0" alphaTo="0.0" />
+					
+					<mx:Fade filter="add" alphaFrom="0.0" alphaTo="1.0" />
+				</mx:Parallel>
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<!-- Zooming out. -->
+		<mx:Transition fromState="biography" toState="">
+			<mx:Sequence				
+			  effectEnd="restore();"
+				targets="{[imgPlanet, imgBiography, imgProjects, imgSkills, imgResume, panelAvatar, panelComments,
+									lblName, lblBiography, lblProjects, lblSkills, lblResume,
+									panelBiography, panelProjects, panelResume, panelSkills]}" 
+				suspendBackgroundProcessing="true">
+				<mx:Parallel>
+					<mx:Move target="{imgBiography}" xTo="{northX}" yTo="{northY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Move target="{imgProjects}" xTo="{eastX}" yTo="{eastY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Move target="{imgSkills}" xTo="{southX}" yTo="{southY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Move target="{imgResume}" xTo="{westX}" yTo="{westY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="0" angleTo="0" easingFunction="{Cubic.easeOut}" />
+					<mx:Fade filter="remove" alphaFrom="1.0" alphaTo="0.0" easingFunction="{Cubic.easeOut}" />
+				</mx:Parallel>
+				<mx:RemoveChildAction />
+				<mx:SetPropertyAction name="visible" />
+				<mx:Parallel>			
+					<mx:Move filter="resize" />
+					<mx:Resize filter="resize" />
+	
+					<mx:Blur filter="show" duration="1000" />
+					<mx:Fade filter="show" alphaFrom="0.0" alphaTo="1.0" />
+				</mx:Parallel>
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<mx:Transition fromState="projects" toState="">
+			<mx:Sequence				
+				effectEnd="restore();"
+				targets="{[imgPlanet, imgBiography, imgProjects, imgSkills, imgResume, panelAvatar, panelComments,
+									lblName, lblBiography, lblProjects, lblSkills, lblResume,
+									panelBiography, panelProjects, panelResume, panelSkills]}" 
+				suspendBackgroundProcessing="true">
+				<mx:Parallel>
+					<mx:Move target="{imgBiography}" xTo="{northX}" yTo="{northY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Move target="{imgProjects}" xTo="{eastX}" yTo="{eastY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Move target="{imgSkills}" xTo="{southX}" yTo="{southY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Move target="{imgResume}" xTo="{westX}" yTo="{westY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="270" angleTo="360" easingFunction="{Cubic.easeOut}" />
+					<mx:Fade filter="remove" alphaFrom="1.0" alphaTo="0.0" easingFunction="{Cubic.easeOut}" />
+				</mx:Parallel>
+				<mx:RemoveChildAction />
+				<mx:SetPropertyAction name="visible" />
+				<mx:Parallel>			
+					<mx:Move filter="resize" />
+					<mx:Resize filter="resize" />
+	
+					<mx:Blur filter="show" duration="1000" />
+					<mx:Fade filter="show" alphaFrom="0.0" alphaTo="1.0" />
+				</mx:Parallel>
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<mx:Transition fromState="skills" toState="">
+			<mx:Sequence				
+				effectEnd="restore();"
+				targets="{[imgPlanet, imgBiography, imgProjects, imgSkills, imgResume, panelAvatar, panelComments,
+									lblName, lblBiography, lblProjects, lblSkills, lblResume,
+									panelBiography, panelProjects, panelResume, panelSkills]}" 
+				suspendBackgroundProcessing="true">
+				<mx:Parallel>
+					<mx:Move target="{imgBiography}" xTo="{northX}" yTo="{northY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Move target="{imgProjects}" xTo="{eastX}" yTo="{eastY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Move target="{imgSkills}" xTo="{southX}" yTo="{southY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Move target="{imgResume}" xTo="{westX}" yTo="{westY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="180" angleTo="0" easingFunction="{Cubic.easeOut}" />
+					<mx:Fade filter="remove" alphaFrom="1.0" alphaTo="0.0" easingFunction="{Cubic.easeOut}" />
+				</mx:Parallel>
+				<mx:RemoveChildAction />
+				<mx:SetPropertyAction name="visible" />
+				<mx:Parallel>			
+					<mx:Move filter="resize" />
+					<mx:Resize filter="resize" />
+	
+					<mx:Blur filter="show" duration="1000" />
+					<mx:Fade filter="show" alphaFrom="0.0" alphaTo="1.0" />
+				</mx:Parallel>
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<mx:Transition fromState="resume" toState="">
+			<mx:Sequence				
+				effectEnd="restore();"
+				targets="{[imgPlanet, imgBiography, imgProjects, imgSkills, imgResume, panelAvatar, panelComments,
+									lblName, lblBiography, lblProjects, lblSkills, lblResume,
+									panelBiography, panelProjects, panelResume, panelSkills]}"
+				suspendBackgroundProcessing="true">
+				<mx:Parallel>
+					<mx:Move target="{imgBiography}" xTo="{northX}" yTo="{northY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Move target="{imgProjects}" xTo="{eastX}" yTo="{eastY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Move target="{imgSkills}" xTo="{southX}" yTo="{southY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Move target="{imgResume}" xTo="{westX}" yTo="{westY}" easingFunction="{Cubic.easeOut}" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="90" angleTo="0" easingFunction="{Cubic.easeOut}" />
+					<mx:Fade filter="remove" alphaFrom="1.0" alphaTo="0.0" easingFunction="{Cubic.easeOut}" />
+				</mx:Parallel>
+				<mx:RemoveChildAction />
+				<mx:SetPropertyAction name="visible" />
+				<mx:Parallel>			
+					<mx:Move filter="resize" />
+					<mx:Resize filter="resize" />
+	
+					<mx:Blur filter="show" duration="1000" />
+					<mx:Fade filter="show" alphaFrom="0.0" alphaTo="1.0" />
+				</mx:Parallel>
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<!-- Transitions between satellites while zoomed-in. -->
+		<!-- Notes: 
+				 The reason we explicitly define each transition instead of using the "*" operator is
+				 for the sake of rotating the planet. Rotation is normally definied w.r.t. the top-left
+				 corner of an image, which makes it very clumsy to define as part of a view state. 
+			 	 Instead we use transitions (which rotate w.r.t. the image center) with hard-coded
+				 rotation values.
+				 -->
+		<mx:Transition fromState="biography" toState="resume">
+			<mx:Sequence 
+				targets="{[imgBiography, imgProjects, imgSkills, imgResume, panelBiography, panelProjects, panelResume, panelSkills]}"
+				suspendBackgroundProcessing="true">
+				<mx:Parallel>
+					<mx:Move filter="move" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="0" angleTo="90" />
+					<mx:Fade filter="remove" alphaFrom="1.0" alphaTo="0.0" />
+				</mx:Parallel>
+				<mx:RemoveChildAction />
+				<mx:AddChildAction />
+				<mx:Fade filter="add" alphaFrom="0.0" alphaTo="1.0" />
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<mx:Transition fromState="biography" toState="projects">
+			<mx:Sequence 
+				targets="{[imgBiography, imgProjects, imgSkills, imgResume, panelBiography, panelProjects, panelResume, panelSkills]}"
+				suspendBackgroundProcessing="true">
+				<mx:Parallel>
+					<mx:Move filter="move" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="0" angleTo="-90" />
+					<mx:Fade filter="remove" alphaFrom="1.0" alphaTo="0.0" />
+				</mx:Parallel>
+				<mx:RemoveChildAction />
+				<mx:AddChildAction />
+				<mx:Fade filter="add" alphaFrom="0.0" alphaTo="1.0" />
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<mx:Transition fromState="projects" toState="skills">
+			<mx:Sequence 
+				targets="{[imgBiography, imgProjects, imgSkills, imgResume, panelBiography, panelProjects, panelResume, panelSkills]}"
+				suspendBackgroundProcessing="true">
+				<mx:Parallel>
+					<mx:Move filter="move" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="270" angleTo="180" />
+					<mx:Fade filter="remove" alphaFrom="1.0" alphaTo="0.0" />
+				</mx:Parallel>
+				<mx:RemoveChildAction />
+				<mx:AddChildAction />
+				<mx:Fade filter="add" alphaFrom="0.0" alphaTo="1.0" />
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<mx:Transition fromState="projects" toState="biography">
+			<mx:Sequence 
+				targets="{[imgBiography, imgProjects, imgSkills, imgResume, panelBiography, panelProjects, panelResume, panelSkills]}"
+				suspendBackgroundProcessing="true">
+				<mx:Parallel>
+					<mx:Move filter="move" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="270" angleTo="360" />
+					<mx:Fade filter="remove" alphaFrom="1.0" alphaTo="0.0" />
+				</mx:Parallel>
+				<mx:RemoveChildAction />
+				<mx:AddChildAction />
+				<mx:Fade filter="add" alphaFrom="0.0" alphaTo="1.0" />
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<mx:Transition fromState="skills" toState="resume">
+			<mx:Sequence 
+				targets="{[imgBiography, imgProjects, imgSkills, imgResume, panelBiography, panelProjects, panelResume, panelSkills]}"
+				suspendBackgroundProcessing="true">
+				<mx:Parallel>
+					<mx:Move filter="move" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="180" angleTo="90" />
+					<mx:Fade filter="remove" alphaFrom="1.0" alphaTo="0.0" />
+				</mx:Parallel>
+				<mx:RemoveChildAction />
+				<mx:AddChildAction />
+				<mx:Fade filter="add" alphaFrom="0.0" alphaTo="1.0" />
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<mx:Transition fromState="skills" toState="projects">
+			<mx:Sequence 
+				targets="{[imgBiography, imgProjects, imgSkills, imgResume, panelBiography, panelProjects, panelResume, panelSkills]}"
+				suspendBackgroundProcessing="true">
+				<mx:Parallel>
+					<mx:Move filter="move" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="180" angleTo="270" />
+					<mx:Fade filter="remove" alphaFrom="1.0" alphaTo="0.0" />
+				</mx:Parallel>
+				<mx:RemoveChildAction />
+				<mx:AddChildAction />
+				<mx:Fade filter="add" alphaFrom="0.0" alphaTo="1.0" />
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<mx:Transition fromState="resume" toState="biography">
+			<mx:Sequence 
+				targets="{[imgBiography, imgProjects, imgSkills, imgResume, panelBiography, panelProjects, panelResume, panelSkills]}"
+				suspendBackgroundProcessing="true">
+				<mx:Parallel>
+					<mx:Move filter="move" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="90" angleTo="0" />
+					<mx:Fade filter="remove" alphaFrom="1.0" alphaTo="0.0" />
+				</mx:Parallel>
+				<mx:RemoveChildAction />
+				<mx:AddChildAction />
+				<mx:Fade filter="add" alphaFrom="0.0" alphaTo="1.0" />
+			</mx:Sequence>
+		</mx:Transition>
+		
+		<mx:Transition fromState="resume" toState="skills">
+			<mx:Sequence 
+				targets="{[imgBiography, imgProjects, imgSkills, imgResume, panelBiography, panelProjects, panelResume, panelSkills]}"
+				suspendBackgroundProcessing="true">
+				<mx:Parallel>
+					<mx:Move filter="move" />
+					<mx:Rotate target="{imgPlanet}" angleFrom="90" angleTo="180" />
+					<mx:Fade filter="remove" alphaFrom="1.0" alphaTo="0.0" />
+				</mx:Parallel>
+				<mx:RemoveChildAction />
+				<mx:AddChildAction />
+				<mx:Fade filter="add" alphaFrom="0.0" alphaTo="1.0" />
+			</mx:Sequence>
+		</mx:Transition>
+		
+	</mx:transitions>
+	
+	<!-- REMOTE OBJECTS -->
+	<mx:RemoteObject id="projectRemote" destination="zend" source="ProjectService" fault="InventionUniverse.remoteFaultListener(event)" showBusyCursor="true">
+		<mx:method name="getProjectsByParentID" result="_getProjectsByParentID(event)" />
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="monitoringRemote" destination="zend" source="UsageMonitor">
+		<mx:method name="incrementProjectViewCount" />
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="skillRemote" destination="zend" source="SkillService" fault="InventionUniverse.remoteFaultListener(event)" showBusyCursor="true">
+		<mx:method name="getSkillsByParentID" result="_getSkillsByParentID(event);" />	
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="commentRemote" destination="zend" source="CommentService" fault="InventionUniverse.remoteFaultListener(event)" showBusyCursor="true">
+		<mx:method name="putComment" result="_putComment(event);" />
+		<mx:method name="getCommentsByPlanetID" result="_getCommentsByPlanetID(event);" />
+		<mx:method name="deleteCommentByID" result="_deleteCommentByID(event);" />
+	</mx:RemoteObject>
+	
+</mx:Canvas>
+

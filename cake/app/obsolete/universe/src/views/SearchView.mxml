@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The search results pop-up window.
+-->
+<mx:TitleWindow 
+	xmlns:mx="http://www.adobe.com/2006/mxml"
+	width="430"	height="450"
+	showCloseButton="true"
+	close="close();"
+  creationComplete="Application.application.toggleTimer(false);">
+	
+	<mx:Style>
+		.h1 {
+			fontSize: 14;
+		}
+		
+		.h2 {
+			fontSize: 14;
+			fontWeight: bold;
+		}
+	</mx:Style>
+
+	<mx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import models.Project.ProjectTypeVO;
+			import models.Project.ProjectVO;
+			import models.CelestialBody.PlanetVO;
+			import views.CelestialBody.PlanetView;
+			import mx.rpc.events.ResultEvent;
+			import mx.events.ListEvent;
+			import mx.events.CloseEvent;
+			import mx.containers.Canvas;
+			import mx.controls.Image;
+			import mx.controls.Text;
+			import mx.controls.Button;
+			import mx.controls.ComboBox;
+			import mx.controls.Alert;
+			import mx.collections.ArrayCollection;
+			import mx.managers.PopUpManager;
+			import flash.net.navigateToURL;
+			import flash.net.URLRequest;
+			
+			/** The search string. */
+			private var query:String;
+			
+			/** Planets that match the search string. */
+			private var planetResults:Array;
+			/** Projects that match the search string. */
+			private var projectResults:Array;
+			
+			/** Container for project search results. */
+			private var canvasProjects:Canvas;
+			/** List of project types to filter project search results by. */
+			private var comboType:ComboBox;
+			
+			/** A pseudo type-name that represents all types. For the project type filter ComboBox. */
+			public static const ALL_TYPE:String = "[All types]";
+			
+			public function init(query:String):void {
+				this.title = "Search: '" + query + "'"; 
+				
+				this.query = query;
+				
+				// Need to create children components of vboxProjects here instead of using MXML
+				// because in MXML they are not created until the tab is switched.
+				comboType = new ComboBox();
+				vboxProjects.addChild(comboType);
+				canvasProjects = new Canvas();
+				vboxProjects.addChild(canvasProjects);
+				
+				planetRemote.searchPlanets(query);
+				
+				// Actual project search performed after we get the project types.
+				// @see _getAllProjectTypes().
+				projectTypeRemote.getAllProjectTypes();
+			}
+			
+			/** Handles planetRemote->searchPlanets(). */
+			private function _searchPlanets(e:ResultEvent):void {												
+				planetResults = e.result as Array;
+				
+				// Empty arrays are translated to null objects by Zend Amf.
+				if (planetResults == null) {
+					planetResults = new Array();
+				}
+				
+				// Display only when both planet and project results are in.
+				if (planetResults != null && projectResults != null) {
+					displaySearchResults();
+				}
+			}
+			
+			/** Handles projectRemote->searchProjects(). */
+			private function _searchProjects(e:ResultEvent):void {
+				projectResults = e.result as Array;
+				
+				// Empty arrays are translated to null objects by Zend Amf.
+				if (projectResults == null) {
+					projectResults = new Array();
+				}
+				
+				// Display only when both planet and project results are in.
+				if (planetResults != null && projectResults != null) {
+					displaySearchResults();
+				}
+			}
+			
+			private function displaySearchResults():void {
+				var universe:InventionUniverse = InventionUniverse(Application.application);
+
+				// Display search results in a grid.
+				lblResults.htmlText = "Found <b>" + 
+					planetResults.length + "</b> planet(s) and <b>" + 
+					projectResults.length + "</b> project(s).";
+
+				// PLANETS.				
+				displayPlanetResults();
+				
+				// PROJECTS.
+				displayProjectResults();
+			}
+			
+			private function displayPlanetResults():void {
+				var x:Number = 5;
+				var y:Number = 5;				
+				
+				for (var i:int = 0; i < planetResults.length; i++) {
+					var planet:PlanetVO = PlanetVO(planetResults[i]);	
+				
+					var lblPlanetNumber:Label = new Label();
+					lblPlanetNumber.text = (i + 1) + ".";
+					lblPlanetNumber.x = x;
+					lblPlanetNumber.y = y + 10;
+					lblPlanetNumber.styleName = "h2";
+					canvasPlanets.addChild(lblPlanetNumber);
+					
+					var planetView:PlanetView = new PlanetView();
+					// The third term for each coordinate is because the planet image is at the center
+					// of its parent component, as opposed to the top left.
+					planetView.init(
+						lblPlanetNumber.x + 30 - (PlanetView.WIDTH - PlanetView.IMAGE_WIDTH)/2, 
+						y - (PlanetView.HEIGHT - PlanetView.IMAGE_HEIGHT)/2, 
+						planet);
+					canvasPlanets.addChild(planetView);
+					
+					var txtPlanetDescription:Text = new Text();
+					txtPlanetDescription.htmlText = "<font size='14'><b>" + planet.first_name + "</b></font><br />";
+					if (planet.hometown != null) { // Display hometown if set.
+						txtPlanetDescription.htmlText += planet.hometown + "<br />"; 
+					}
+					txtPlanetDescription.htmlText += "<i>" + planet.email + "</i>";
+					txtPlanetDescription.x = planetView.x + 80;
+					txtPlanetDescription.y = y;
+					canvasPlanets.addChild(txtPlanetDescription);
+					
+					y += PlanetView.IMAGE_HEIGHT + 35;
+				}
+			}
+			
+			private function displayProjectResults(filterType:String = null):void {
+				// Clear old search results, if any.
+				canvasProjects.removeAllChildren();
+				
+				var x:Number = 5;
+				var y:Number = 5;
+				
+				for (var j:int = 0; j < projectResults.length; j++) {
+					var pair:Array;
+					try {
+						pair = projectResults[j] as Array;
+					} catch (e:Error) {
+						trace ("SearchView.displaySearchResults: Unexpected return type.");
+						return;
+					}
+					
+					var project:ProjectVO = ProjectVO(pair[0]); // The project.
+					
+					// If a project type filter is set, only display project results of that type.
+					if (filterType != null) {
+						if (project.type != filterType && filterType != ALL_TYPE) {
+							continue;
+						}
+					}
+					
+					var parent:PlanetVO = PlanetVO(pair[1]); // Planet that owns this project.					
+					
+					var lblProjectNumber:Label = new Label();
+					lblProjectNumber.text = (j + 1) + ".";
+					lblProjectNumber.x = x;
+					lblProjectNumber.y = y + 10;
+					lblProjectNumber.styleName = "h2";
+					canvasProjects.addChild(lblProjectNumber);
+					
+					var imgProjectThumbnail:Image = new Image();
+					imgProjectThumbnail.x = lblProjectNumber.x + 30;
+					imgProjectThumbnail.y = y;
+					imgProjectThumbnail.width = 160;
+					imgProjectThumbnail.source = project.thumbnail_url;
+					canvasProjects.addChild(imgProjectThumbnail);
+					
+					var txtProjectDescription:Text = new Text();
+					txtProjectDescription.htmlText = "<font size='14'><b>" + project.name + "</b><br /><i>" + project.type + "</i></font><br />" + project.description;
+					txtProjectDescription.x = lblProjectNumber.x + 30;
+					txtProjectDescription.y = y + 120;
+					txtProjectDescription.width = 250;
+					txtProjectDescription.height = 100;
+					txtProjectDescription.styleName = "text";
+					canvasProjects.addChild(txtProjectDescription);
+					
+					var lblCreatedBy:Label = new Label();
+					lblCreatedBy.text = "Created by:";
+					lblCreatedBy.x = txtProjectDescription.x + txtProjectDescription.width + 15;
+					lblCreatedBy.y = y;
+					lblCreatedBy.styleName = "text";
+					canvasProjects.addChild(lblCreatedBy);
+					
+					var parentView:PlanetView = new PlanetView();
+					parentView.init(lblCreatedBy.x + 15 - (PlanetView.WIDTH - PlanetView.IMAGE_WIDTH)/2, 
+													y + 40 - (PlanetView.HEIGHT - PlanetView.IMAGE_HEIGHT)/2, 
+													parent);
+					canvasProjects.addChild(parentView);
+					
+					var btnDownload:Button = new Button();
+					btnDownload.id = j.toString();
+					btnDownload.label = "Download";
+					btnDownload.x = lblCreatedBy.x - 7;
+					btnDownload.y = lblCreatedBy.y + 100;
+					btnDownload.addEventListener(MouseEvent.MOUSE_DOWN, downloadProject);
+					canvasProjects.addChild(btnDownload);
+
+					y += txtProjectDescription.height + 120;
+				}	
+			}
+			
+			/** Downloads the selected project. */
+			private function downloadProject(e:MouseEvent):void {
+				// This works because the ID's of the download buttons are set to
+				// correspond to the index of the project search result. @see displayProjectResults().
+				var id:int = int(Button(e.currentTarget).id);
+				
+				var pair:Array
+				try {
+					pair = projectResults[id] as Array;
+				} catch (e:Error) {
+					trace ("SearchView.downloadProject: Unexpected return type.");
+					return;
+				}
+				
+				var project:ProjectVO = ProjectVO(pair[0]);
+				
+				if (project.type == "Scratch") {
+					// Open Scratch projects in special applet window.
+					navigateToURL(new URLRequest("../uploads/scratch.html?" + "projects/" + project.parent_id + "/" + project.id), "_blank");
+				} else {
+					navigateToURL(new URLRequest(InventionUniverse.UPLOADS_PATH + project.url));
+				}
+				
+				// Increment the project view count via remoting.
+				monitoringRemote.incrementProjectViewCount(project.id); 
+			}
+			
+			/** Handles projectRemote->getAllProjectTypes(). */
+			private function _getAllProjectTypes(e:ResultEvent):void {
+				var T:Array = e.result as Array;; /* of ProjectTypeVO */
+				
+				if (T == null) {
+					Alert.show(InventionUniverse.NULL_RETURN_ERROR, "Invention Universe > Error");
+					return;
+				}
+				
+				// R is an array of String that contains unique 'name' values of elements from T.
+				var R:Array = new Array() /* of String */;
+				for each (var t:ProjectTypeVO in T) {
+					var n:String = t.name;
+					
+					if (R.indexOf(n) == -1) {
+						R.push(n);
+					}
+				}
+				
+				// "All" pseudo type-name is the last element of the array.
+				R.push(ALL_TYPE);
+				
+				// Add combo box with project types to project search tab.
+				comboType.prompt = "(Filter projects by type...)";
+				comboType.dataProvider = new ArrayCollection(R);
+				comboType.selectedIndex = -1; // Display prompt.
+				comboType.addEventListener(ListEvent.CHANGE, filterProjects);
+				
+				// Now, search for matching projects.
+				projectRemote.searchProjects(query);
+			}
+			
+			/** Executes when project filter ComboBox changes. Filters project search results by the selected type. */
+			private function filterProjects(e:ListEvent):void {
+				var selectedType:String = String(comboType.selectedItem);
+				
+				displayProjectResults(selectedType);
+			}
+			
+			/** Closes this pop-up window. */
+			private function close():void {
+				Application.application.isSearch = false;
+				
+				PopUpManager.removePopUp(this);
+				
+				Application.application.toggleTimer(true);
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- COMPONENTS -->
+	<mx:Label id="lblResults" styleName="h1" paddingBottom="5" />
+	
+	<mx:TabNavigator width="100%" height="100%">
+		<mx:VBox id="vboxPlanets" label="Planets" width="100%" height="100%">
+			<mx:Canvas id="canvasPlanets" />
+		</mx:VBox>
+		<mx:VBox id="vboxProjects" label="Projects" width="100%" height="100%" />
+	</mx:TabNavigator>
+	
+	<!-- REMOTE OBJECTS -->
+	<mx:RemoteObject id="planetRemote" destination="zend" source="PlanetService" fault="InventionUniverse.remoteFaultListener(event)" showBusyCursor="true">
+		<mx:method name="searchPlanets" result="_searchPlanets(event)" />
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="projectRemote" destination="zend" source="ProjectService" fault="InventionUniverse.remoteFaultListener(event)" showBusyCursor="true">
+		<mx:method name="searchProjects" result="_searchProjects(event)" />
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="projectTypeRemote" destination="zend" source="ProjectTypeService" fault="InventionUniverse.remoteFaultListener(event)" showBusyCursor="true">
+		<mx:method name="getAllProjectTypes" result="_getAllProjectTypes(event)" />
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="monitoringRemote" destination="zend" source="UsageMonitor">
+		<mx:method name="incrementProjectViewCount" />
+	</mx:RemoteObject>
+	
+</mx:TitleWindow>

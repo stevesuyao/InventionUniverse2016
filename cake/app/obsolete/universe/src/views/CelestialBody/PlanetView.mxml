@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The view for a single planet.
+-->
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" cachePolicy="on">
+	<mx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import models.CelestialBody.PlanetarySystemVO;
+			import models.CelestialBody.PlanetVO;
+			import mx.controls.Image;
+			import mx.controls.Label;
+			import helpers.MouseOverZoom;
+		
+			public static const WIDTH:int = 100;
+			public static const HEIGHT:int = 100;
+		
+			// Size of image normally.
+			public static const IMAGE_WIDTH:int = 20;
+			public static const IMAGE_HEIGHT:int = 20;
+			
+			private var SIZE_ENLARGE_VALUE:int;
+			
+			public var isVacant:Boolean = false;
+			
+			[Bindable]
+			private var planet:PlanetVO;
+			
+			public function init(initialX:Number, initialY:Number, planet:PlanetVO, isVacant:Boolean = false):void {
+				this.width = WIDTH;
+				this.height = HEIGHT;
+				
+				this.x = initialX;
+				this.y = initialY;
+				
+				this.planet = planet;	
+				this.isVacant = isVacant;
+				SIZE_ENLARGE_VALUE = Math.floor(7 * Math.log(planet.project_count+1) / Math.LN2);
+
+				callLater(initLater);
+			}
+			
+			// Add event listeners, etc.
+			private function initLater():void {
+				// Compute "image" position/size, and "lblName" position.
+				// More project, larger in size
+				image.x = (WIDTH - IMAGE_WIDTH - SIZE_ENLARGE_VALUE) >> 1;
+				image.y = image.x; // (HEIGHT - IMAGE_HEIGHT - SIZE_ENLARGE_VALUE) >> 1;
+				image.width = IMAGE_WIDTH + SIZE_ENLARGE_VALUE;
+				image.height = image.width; // IMAGE_HEIGHT + SIZE_ENLARGE_VALUE;
+				lblName.y = (HEIGHT + IMAGE_HEIGHT + SIZE_ENLARGE_VALUE) >> 1;
+
+				// Global position.
+				var centerX:Number = this.parent.x + x + WIDTH/2;
+				var centerY:Number = this.parent.y + y + HEIGHT/2;
+				
+				var mozPlanet:MouseOverZoom = new MouseOverZoom(1.5, image);
+
+				if (isVacant) {
+					// VACANT PLANETS.
+					image.source = "assets/images/vacant.png";
+					this.removeChild(lblName);
+					
+					image.addEventListener(MouseEvent.MOUSE_DOWN, 
+						function():void {							
+							Application.application.finishRegistration(planet.parent);
+						});
+				} else {
+					// REAL PLANETS.
+					image.addEventListener(MouseEvent.MOUSE_DOWN, 
+						function():void { 
+							Application.application.testRangeAndZoomIn(centerX, centerY, planet); 
+						});	
+						
+					// Rocket targeting.
+					image.addEventListener(MouseEvent.ROLL_OVER,
+						function():void {
+							Application.application.rocket.setTarget(centerX, centerY, planet);
+						});
+					image.addEventListener(MouseEvent.ROLL_OUT, 
+						function():void {
+							Application.application.rocket.unsetTarget();
+						});
+				}
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Image id="image" 
+		source="{planet.image_url}"
+		useHandCursor="true" buttonMode="true" mouseChildren="true"
+		maintainAspectRatio="false" />
+		
+	<mx:Label id="lblName"
+		text="{planet.name}"
+		width="100%"
+		textAlign="center" />
+		
+</mx:Canvas>

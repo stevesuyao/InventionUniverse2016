@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The view for a single planetary system.
+-->
+<mx:Canvas	xmlns:mx="http://www.adobe.com/2006/mxml" cachePolicy="on" horizontalScrollPolicy="off" verticalScrollPolicy="off"> 
+	<mx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import models.CelestialBody.PlanetarySystemVO;
+			import models.CelestialBody.PlanetVO;
+			import views.RegistrationView;
+			import mx.managers.PopUpManager;
+			import mx.controls.Image;
+			import mx.controls.Label;
+			import mx.controls.Alert;
+			import mx.events.EffectEvent; 
+			import mx.effects.easing.Cubic;
+			
+			public static const PI_TIMES_TWO:Number = 6.28318;//5307179586476925286766559;
+			
+			// Bound width/height specifies a bounding box in which this view will be randomly placed.
+			public static const BOUND_WIDTH:int = 800;
+			public static const BOUND_HEIGHT:int = 600;
+			
+			public static const WIDTH:int = 750;
+			public static const HEIGHT:int = 550;
+			
+			public static const IMAGE_WIDTH:int = 70;
+			public static const IMAGE_HEIGHT:int = 70;	
+			
+			private var initialX:Number;
+			private var initialY:Number;
+			
+			[Bindable]
+			public var planetarySystem:PlanetarySystemVO;
+			
+			/** A placeholder for a planet that not yet exists. */
+			private var vacantPlanet:PlanetVO;
+			
+			/** Width of initial orbital ring. */
+			public static const ELLIPSE_SIZE:int = 195;
+			/** Width of each additional ring past the first. */
+			public static const ELLIPSE_LEVEL:int = 55;
+			/** Height:width of each elliptical orbit. */
+			public static const ELLIPSE_RATIO:Number = 0.72;
+			
+			public function init(planetarySystem:PlanetarySystemVO, initialX:int, initialY:int):void {				
+				this.planetarySystem = planetarySystem;
+				
+				this.x = this.initialX = initialX;
+				this.y = this.initialY = initialY;
+				
+				this.width = WIDTH;
+				this.height = HEIGHT;
+				
+				this.vacantPlanet = new PlanetVO();
+				this.vacantPlanet.parent = planetarySystem;
+			}
+						
+			/**
+			 * Draws the planets in this PlanetarySystem by adding 
+			 * PlanetView objects as children to this Canvas.
+			 * 
+			 * Planets are distributed across orbital rings with a locally 
+			 * randomized position to prevent overlap but also to avoid an 
+			 * unnatural-looking uniformity.
+			 */
+			public function drawPlanets():void {
+				var planets:Array = planetarySystem.children;
+				
+				graphics.lineStyle(0.5, 0xffffff, 0.1);
+				
+				var planetViews:Array = new Array(); /* of PlanetView */
+				var ellipseSize:Number = ELLIPSE_SIZE;
+				
+				// Only display vacant planets for currently registering users.
+				var n:int = (Application.application.isRegister) ? PlanetarySystemVO.MAX_CHILDREN : planets.length;
+				
+				for (var i:int = 0; i < n; i++) {//planets.length; i++) {					
+					// Draw orbital ellipse.
+					graphics.drawEllipse(
+						width/2 - ellipseSize/2, 
+						height/2 - (ELLIPSE_RATIO*ellipseSize)/2,
+						ellipseSize, 
+						ellipseSize*ELLIPSE_RATIO
+					);
+					
+					// Random angular position of planet, except the first planet must be on bottom arc half.
+					var theta:Number = i == 0 ? (Math.random() * Math.PI) : (Math.random() * Math.PI * 2);
+					var top:Number = height/2 + Math.sin(theta)*ellipseSize/2*ELLIPSE_RATIO - PlanetView.HEIGHT/2;
+					var left:Number = width/2 + Math.cos(theta)*ellipseSize/2 - PlanetView.WIDTH/2;
+					
+					// Create view for each planet.
+					var newView:PlanetView = new PlanetView();
+					
+					if (i >= planets.length) {
+						newView.init(left, top, vacantPlanet, true); // Vacant planet.
+					} else {
+						newView.init(left, top, planets[i]);
+					}
+
+					planetViews.push(newView);
+
+					ellipseSize += ELLIPSE_LEVEL; //* Math.max(0.3, Math.random()); // Randomize distance to next orbit.
+				}
+				
+				// Sort views by y-position, then add in descending order to 
+				// have correct overlapping of planets (lower planets are in front).
+				planetViews.sortOn("y", Array.NUMERIC);
+				for each (var view:PlanetView in planetViews) {
+					addChild(view);
+				}
+				
+				// Put description panel on top.
+				setChildIndex(description, numChildren - 1); 
+			}
+			
+			/** Toggles the transition animation for the description panel. */
+			private function toggleDescription(e:MouseEvent):void {
+				var isRollOver:Boolean = (e.type == MouseEvent.ROLL_OVER);;
+
+				fadeDescription.easingFunction = 
+					moveDescription.easingFunction = isRollOver ? Cubic.easeOut : Cubic.easeIn;
+
+				// After the panel fades/moves out we want to make it invisible, vice versa.
+				// Prevents the panel from obscuring other components (i.e. planets).
+				if (isRollOver) {
+					description.visible = true;
+					effectDescription.removeEventListener(EffectEvent.EFFECT_END, hideDescription);
+				} else {
+					effectDescription.addEventListener(EffectEvent.EFFECT_END, hideDescription);
+				}
+				
+				if (effectDescription.isPlaying) {
+					effectDescription.reverse();
+				} else {
+					effectDescription.play([description], !isRollOver);
+				}
+			}
+			
+			private function hideDescription(e:Event):void {
+				description.visible = false;
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Image id="image" 
+		source="{planetarySystem.image_url}"
+		x="{WIDTH/2 - IMAGE_WIDTH/2}" y="{HEIGHT/2 - IMAGE_HEIGHT/2}" 
+		width="{IMAGE_WIDTH}" height="{IMAGE_HEIGHT}" 
+		useHandCursor="true" buttonMode="true" mouseChildren="true"
+		maintainAspectRatio="false"
+		rollOver="toggleDescription(event);" rollOut="toggleDescription(event);" />
+		
+	<mx:Label
+		text="{planetarySystem.name}"
+		y="{HEIGHT/2 + IMAGE_HEIGHT/2}"
+		width="100%"
+		textAlign="center"
+		color="#00CCFF" />
+	
+	<mx:Panel id="description" 
+		title="{planetarySystem.name}"
+		width="250"
+		x="{WIDTH/2 - 125}" y="{HEIGHT/2 + IMAGE_HEIGHT/2 + 40}"
+		showEffect="show" hideEffect="hide"
+		visible="false">
+		<mx:Text id="txtStar" width="100%" text="{planetarySystem.description}" />
+	</mx:Panel>
+	
+	<mx:Parallel id="effectDescription" suspendBackgroundProcessing="true">
+		<mx:Fade id="fadeDescription" alphaFrom="0.0" alphaTo="1.0" />
+		<mx:Move id="moveDescription" yFrom="{HEIGHT/2 + IMAGE_HEIGHT/2 + 40}" yTo="{HEIGHT/2 + IMAGE_HEIGHT/2 + 10}" />
+	</mx:Parallel>
+	
+</mx:Canvas>

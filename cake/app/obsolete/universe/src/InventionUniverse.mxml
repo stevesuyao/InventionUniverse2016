@@ -1,0 +1,1380 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The main application.
+-->
+<mx:Application 
+	xmlns:mx="http://www.adobe.com/2006/mxml" 
+	xmlns:Home="views.Home.*"
+	layout="absolute"
+	backgroundColor="0x000000" 
+	horizontalScrollPolicy="off" 
+	verticalScrollPolicy="off"
+	creationComplete="init()">
+	
+	<mx:Style>
+		Label {
+			color: white;
+		}
+		
+		Button {
+			color: black;
+		}
+		
+		Panel, TitleWindow {
+			backgroundColor: black;
+			borderColor: black;
+			backgroundAlpha: 0.8;
+			borderAlpha: 0.8;
+			titleStyleName: "title";
+			closeButtonUpSkin: Embed(source="assets/swf/closeButton_up.png");
+			closeButtonDownSkin: Embed(source="assets/swf/closeButton_down.png");
+			closeButtonOverSkin: Embed(source="assets/swf/closeButton_over.png");
+			closeButtonDisabledSkin: Embed(source="assets/swf/closeButton_down.png");
+		}
+		
+		TabNavigator {
+			backgroundAlpha: 0.0;
+			tabStyleName: "tab";
+			firstTabStyleName: "tab";
+			lastTabStyleName: "tab";
+		}
+		
+		.tab {
+			backgroundAlpha: 0.0;
+			color: white;
+			fontSize: 14;
+		}
+		
+		Alert {
+			backgroundColor: black;
+			borderColor: black;
+			backgroundAlpha: 0.7;
+			borderAlpha: 0.7;
+			titleStyleName: "title";
+		}
+		
+		.title {
+			color: white;
+			fontSize: 14;
+		}
+		
+		DataGrid {
+			headerColors: #333333, #333333;
+			backgroundAlpha: 0.0;
+			color: white;
+		}
+		
+		.comboConstellationText, .comboGalaxyText, .comboPlanetarySystemText {
+			backgroundColor: #5798BF;
+			borderStyle: none;
+			focusAlpha: 0.0;
+			shadowDistance: 0;
+			paddingTop: 2;
+			paddingLeft: 2;
+		}
+		
+		.comboConstellationText {
+			backgroundImage: Embed(source="assets/swf/control_panel/address_left.swf");
+			paddingLeft: 7;
+		}
+		
+		.comboGalaxyText {
+			backgroundImage: Embed(source="assets/swf/control_panel/address_middle.swf");
+		}
+		
+		.comboPlanetarySystemText {
+			backgroundImage: Embed(source="assets/swf/control_panel/address_right.swf");
+		}		
+	</mx:Style>
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.effects.Zoom;
+			import views.*;
+			import views.User.*;
+			import views.Home.*;
+			import views.CelestialBody.*;
+			import models.CelestialBody.*;
+			import flash.utils.Timer;
+			import mx.collections.ArrayCollection;
+			import mx.core.UIComponent;
+			import mx.containers.Canvas;
+			import mx.containers.Panel;
+			import mx.controls.Label;
+			import mx.controls.Image;
+			import mx.controls.Alert;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.events.EffectEvent;
+			import flash.events.TimerEvent;
+			import flash.net.navigateToURL;
+			import mx.effects.Move;	
+			import mx.effects.WipeRight;
+			import mx.effects.Sequence;
+			import mx.effects.easing.Exponential;
+			import mx.effects.easing.Cubic;
+			import mx.effects.easing.Bounce;
+			
+			/** Relative path of directory containing the uploads directory. */
+			public static const UPLOADS_PATH:String = "..";
+			
+			/** Width of the viewable universe. */
+			public static const STAGE_X:int = 3072; // == 1024 * 3
+			/** Height of the viewable universe. */
+			public static const STAGE_Y:int = 2304; // == 768 * 3
+			
+			/** Timer for theLoop(). */
+			private var timer:Timer;
+
+			/** The navigating space ship. */
+			public var rocket:Rocket;
+			private var lastInBound:Boolean = true; // Rocket is in-bound in last loop.
+
+			/** Container for bottom-most components, i.e. star field. */
+			public var background:Background;
+			/** Container for contains top-level components, e.g. selectable planets. */
+			public var foreground:Canvas;
+			/** Navigation class that handles scrolling around the universe. */
+			public var navigation:Navigation;
+			
+			/** Reference to current logged in user. */
+			public var currentUser:PlanetVO;
+			
+			/** Minimap object. */
+			public var minimap:MinimapView;
+
+			/** Are we viewing search results? */
+			public var isSearch:Boolean = false;
+			/** Are we currently viewing home? */
+			public var isHome:Boolean = false;
+			/** Is the user currently in the process of registering a new planet? */
+			public var isRegister:Boolean = false;
+
+			// The following variables are used for zooming out. 
+			// Storing the current constellation and galaxy 'id' values saves queries when zooming out.
+			
+			/** The type of celestial body currently being viewed. */
+			public var currentBodyType:Class;
+			/** The constellation that is the parent of the current celestial body. */
+			public var currentConstellation:ConstellationVO;
+			/** The galaxy that is the parent of the current celestial body. */
+			public var currentGalaxy:GalaxyVO;
+			/** The planetary system that is the parent of the current celestial body. */
+			public var currentPlanetarySystem:PlanetarySystemVO;
+			
+			// We store 'currentPlanetView' to be able to use the "Back" control panel button to change
+			// view states in the UserView.
+			
+			/** The UserView of the currently viewed planet. */
+			public var currentPlanetView:UserView;
+			
+			// Where the "current" variables above store the parent of the currently viewed celestial body,
+			// the following ArrayCollection variables store the bodies actually being viewed. E.g. if
+			// we are viewing the "Milky Way" galaxy, 'currentGalaxy' is the parent galaxy object, and 
+			// 'planetarySystems' are the planetary systems belonging to 'currentGalaxy'.
+			
+			/** The current viewable group of constellations. */
+			[Bindable] private var constellations:ArrayCollection; /* of ConstellationVO */
+			/** The current viewable group of galaxies. */
+			[Bindable] private var galaxies:ArrayCollection; /* of GalaxyVO */
+			/** The current viewable group of planetary systems. */
+			[Bindable] private var planetarySystems:ArrayCollection; /* of PlanetarySystemVO */
+			
+			/** Views corresponding to planetary systems in 'planetarySystems'. */
+			private var planetarySystemViews:Array = new Array(); /* of PlanetarySystemView */
+			
+			// The following booleans are flags used to manage multiple behaviors on receival of RPC return,
+			// since we can't pass in parameters to the handler methods traditionally.
+			
+			/** For lower-level celestial bodies, indicates whether or not to recursively traverse parents 
+			 * 	and set "current<Celestial Body>" references upon receipt of an RPC. */
+			private var isFindParentsRecursively:Boolean = false;
+			/** Indicates whether, after we find the parents recursively, whether we want to fade in.
+			 *	Sometimes the view is dependent on those parents, sometimes not. */
+			private var isFadeInAfterParentsFound:Boolean = false;
+			/** Indicates, upon receival of RPC return, whether or not we want to draw the received Constellation. */
+			private var isDrawConstellation:Boolean = false;
+			/** Indicates, upon receival of RPC return, whether or not we want to draw the received Galaxy. */
+			private var isDrawGalaxy:Boolean = false;
+			/** Indicates, upon receival of RPC return, whether or not we want to draw the received PlanetarySystem. */
+			private var isDrawPlanetarySystem:Boolean = false;
+
+			/** If false, control panel button click actions are disabled. */
+			private var isControlPanelEnabled:Boolean = true;
+			
+			/** Progress bar displayed while waiting for results of RPC's. */
+			private var progressBar:RPCProgressBar = new RPCProgressBar();
+
+			/** @see _getSystems(). */
+			private var planetGroupsToLoad:int;
+			
+			// ERROR MESSAGES.
+			public static const NULL_RETURN_ERROR:String = "Hmm. We didn't expect that to happen.\n\nSorry, please try again!";
+				
+			private function init():void {
+				// Perform statistics
+				statisticsRemote.performStatistics();
+								
+				// IMPORTANT: 
+				// The following order should not be changed to preserve correct layering of components.				
+ 				background = new Background();
+ 				background.init();
+ 				addChild(background);
+
+				// Navigation component needs to be layered under foreground to prevent 
+				// invisible navigation bar from blocking selectable top-level components.
+				navigation = new Navigation(this);
+				
+ 				foreground = new Canvas();
+				foreground.width = STAGE_X;
+				foreground.height = STAGE_Y;
+				addChild(foreground); 
+				
+				rocket = new Rocket(this, foreground);
+				addChild(rocket);
+
+				minimap = new MinimapView();
+				minimap.init(this);
+				addChild(minimap);
+				
+				// Put the "rocket too far" notification on top.
+				setChildIndex(rocketTooFar, numChildren - 1);
+				
+				// Put the control panel on top of everything.
+				bringControlPanelToFront();
+
+				// THE LOOP!
+				timer = new Timer(40); // = 1000 / (25 ticks per second).
+				timer.addEventListener(TimerEvent.TIMER, theLoop);
+				timer.start();
+
+				// Open welcome screen.
+				var welcomeView:WelcomeView = new WelcomeView();
+				PopUpManager.addPopUp(welcomeView, this, true);
+				PopUpManager.centerPopUp(welcomeView);
+				
+				welcomeView.x = width / 2.0 + 400 - welcomeView.width;
+				welcomeView.y = height / 2.0 - welcomeView.height / 2.0;
+				
+				slide.easingFunction = Bounce.easeOut;
+				slide.duration = 1500;
+				slide.xFrom = welcomeView.x - width / 2.0;
+				slide.xTo = welcomeView.x;
+				slide.play([welcomeView],false);
+			}
+			
+			/** Toggles enabling and disabling of main application timer for animations. */
+			public function toggleTimer(isTimerOn:Boolean):void {
+				if (isTimerOn && !timer.running) {
+					timer.start();
+				} else {
+					timer.stop();
+				}
+			}
+			
+			/** THE LOOP! 
+			 *  Handles ALL of the application's animated actions. */
+			private function theLoop(e:TimerEvent):void {
+				if (navigation.isNavigating) {
+					var p:Point = navigation.calculateMove();
+					scroll(p.x, p.y, true);
+				}
+				
+				if (rocket.isMouseDown) {
+					rocket.accelerate();
+				}
+				
+				if (rocket.velocity.length > 0.01) {
+					rocket.moveRocket();
+				
+					// Confine rocket to universe boundaries by testing bounding sphere intersection.
+					var c:Point = rocket.getCenter();
+					var center:Point = new Point(c.x - foreground.x, c.y - foreground.y);
+					var radius:Number = rocket.getHalfDiagonal() * 0.9;
+					
+					if (center.x < radius) {
+						rocket.x += radius - center.x;
+					} else if (center.x > STAGE_X - radius) {
+						rocket.x -= radius - (STAGE_X - center.x);
+					}
+					
+					if (center.y < radius) {
+						rocket.y += radius - center.y;
+ 					} else if (center.y > STAGE_Y - radius) {
+ 						rocket.y -= radius - (STAGE_Y - center.y);
+ 					}
+				
+					// Show updated rocket position on minimap.
+					refreshMinimap();
+				}
+				
+				if (rocket.isDrawTarget) {
+					rocket.drawTargetRange(foreground.x, foreground.y);
+				}
+				
+				// Display minimap if the rocket is outside of the window.
+				checkMinimap(); 
+			}
+			
+			/** Display minimap if the rocket is outside of the window. */
+			private function checkMinimap():void {
+				var inBound:Boolean = ! (rocket.x <= 0 || rocket.x >= width || rocket.y <= 0 || rocket.y >= (height - base.height) );
+				
+				if ( !inBound && lastInBound && !minimap.isShowing ) {
+					minimap.toggle();
+				}
+				
+				lastInBound = inBound;
+			}
+			
+			/////////////////////////////////////////////////////////////////////////
+			// NAVIGATION METHODS
+			/////////////////////////////////////////////////////////////////////////
+			
+			/** 
+			 * Scrolls screen a certain amount. 
+			 * 
+			 * @param x Distance to move on the x-axis.
+			 * @param y Distance to move on the y-axis.
+			 * @param isMouseNavigation Is this movement triggered by mouse navigation?
+			 */
+			public function scroll(scrollX:Number, scrollY:Number, isMouseNavigation:Boolean = false):void {
+				var epsilon:Number = 0.01;
+				
+				// If this is a mouse navigation, change appropriate cues.
+				if (isMouseNavigation) {				
+					if (foreground.x + scrollX > -epsilon) {
+						navigation.setCue(Navigation.LEFT, false);
+					} else if (foreground.x + scrollX < width - STAGE_X + epsilon) {
+						navigation.setCue(Navigation.RIGHT, false);
+					} else { 
+						navigation.setCue(Navigation.LEFT, true);		
+						navigation.setCue(Navigation.RIGHT, true);
+					}
+					
+					if (foreground.y + scrollY > -epsilon) {
+						navigation.setCue(Navigation.TOP, false);
+					} else if (foreground.y + scrollY < height - STAGE_Y + epsilon) {
+						navigation.setCue(Navigation.BOTTOM, false);
+					} else { 
+						navigation.setCue(Navigation.TOP, true);
+						navigation.setCue(Navigation.BOTTOM, true);
+					}
+				}
+				
+				// Don't scroll past dimensions of universe.
+				if (foreground.x + scrollX > -epsilon) {
+					// At the left edge.
+					rocket.x -= foreground.x;
+					foreground.x = 0;
+					scrollX = 0;
+				} else if (foreground.x + scrollX < width - STAGE_X + epsilon) {
+					// At the right edge.
+					rocket.x += -(STAGE_X - width) - foreground.x;
+					foreground.x = -(STAGE_X - width);
+					scrollX = 0;
+				}
+				
+				if (foreground.y + scrollY > -epsilon) {
+					// At the top edge.
+					rocket.y -= foreground.y;
+					foreground.y = 0;
+					scrollY = 0;
+				} else if (foreground.y + scrollY < height - STAGE_Y + epsilon) {
+					// At the bottom edge.
+					rocket.y += -(STAGE_Y - height) - foreground.y;
+					foreground.y = -(STAGE_Y - height);
+					scrollY = 0;
+				}
+	
+				if (scrollX != 0) {				
+					rocket.x += scrollX;
+					foreground.x += scrollX;
+				}
+				
+				if (scrollY != 0) {
+					rocket.y += scrollY;
+					foreground.y += scrollY;
+				}
+				
+				if (scrollX != 0 || scrollY != 0) {
+					background.moveStars(scrollX * Navigation.BACKGROUND_SPEED_SCALE, scrollY * Navigation.BACKGROUND_SPEED_SCALE);
+					
+					refreshMinimap();
+				}
+			}
+		
+			/** Plays a Move effect that shifts the foreground to position (x, y). */
+			public function slowMoveTo(moveX:Number, moveY:Number):void {
+				// Don't scroll past dimensions of universe.
+				moveX = Math.max(width - foreground.width, Math.min(moveX, 0));
+				moveY = Math.max(height - foreground.height, Math.min(moveY, 0));
+				
+				var move:Move = new Move();
+				move.xTo = moveX;
+				move.yTo = moveY;
+				move.duration = 1500;
+				move.easingFunction = Cubic.easeOut;
+	
+				move.play([foreground]);
+			}
+			
+			/** Returns the position of a component w.r.t. the foreground. */
+			public function getGlobalPosition(component:UIComponent):Point {
+				return new Point(component.x - foreground.x, component.y - foreground.y);
+			}
+			
+			/////////////////////////////////////////////////////////////////////////
+			// RPC HANDLER METHODS
+			/////////////////////////////////////////////////////////////////////////
+			
+			/** 
+			 * Handles RPC receival of a constellation array.
+			 * Clears the view screen and draws the constellations. 
+			 */
+			private function _getAllConstellations(e:ResultEvent):void {
+				if (e.result == null) {
+					Alert.show(NULL_RETURN_ERROR, "Invention Universe > Error");
+					return;
+				}
+				
+				currentBodyType = ConstellationVO;
+				
+				foreground.removeAllChildren();
+				
+				constellations = new ArrayCollection(e.result as Array); /* of ConstellationVO */
+				if (currentConstellation == null) {
+					comboConstellation.selectedIndex = -1;
+				}
+				
+				var x:int = 0;
+				var y:int = 0;
+				
+				// Create the view for each constellation and initialize it.
+				for (var i:int = 0; i < constellations.length; i++) {
+					var body:ConstellationVO = ConstellationVO(constellations.getItemAt(i));
+					var view:ConstellationView = new ConstellationView();
+
+					var w:Number = Math.random() * ConstellationView.BOUND_WIDTH;
+					var h:Number = Math.random() * ConstellationView.BOUND_HEIGHT;
+
+					view.init(body, x + w, y + h);
+					foreground.addChild(view);
+					
+					x += ConstellationView.BOUND_WIDTH;
+					if (x > STAGE_X - ConstellationView.IMAGE_WIDTH) {
+						x = 0;
+						y += ConstellationView.BOUND_HEIGHT;
+					}
+				}
+				
+				fadeIn();
+			}
+
+			/** 
+			 * Handles RPC receival of a single constellation.
+			 * Sets the current constellation reference, and if "isDrawConstellation" is set,
+			 * clears the view screen and draws its children galaxies. 
+			 */
+			private function _getConstellation(e:ResultEvent):void {
+				if ((e.result as ConstellationVO) == null) {
+					Alert.show("Specified constellation not found! Please verify input parameters.", "Invention Universe > Error");
+					fadeIn();
+					return;
+				} 
+				
+				currentConstellation = e.result as ConstellationVO;
+				comboConstellation.text = currentConstellation.name;
+				
+				if (isDrawConstellation) {
+					currentBodyType = ConstellationVO;
+					
+					galaxyRemote.getGalaxiesByParentID(currentConstellation.id);
+					isDrawConstellation = false;
+				}
+				
+				if (isFindParentsRecursively && isFadeInAfterParentsFound) {
+					// Here we're finally done with finding all the parents recursively.
+					// If we are not going to draw anything then we need to fade in now. 
+					// In practice this is only reached through clicking on search results 
+					// or logging into your planet at the welcome screen.
+					fadeIn();
+				}
+				
+				isFindParentsRecursively = false;
+			}
+			
+			/** 
+			 * Handles RPC receival of a galaxy array.
+			 * Clears the view screen and draws the galaxies. 
+			 */
+			private function _getGalaxies(e:ResultEvent):void {
+				if (e.result == null) {
+					Alert.show(NULL_RETURN_ERROR, "Invention Universe > Error");
+					return;
+				}
+				
+				currentBodyType = GalaxyVO;
+				
+				galaxies = new ArrayCollection(e.result as Array); /* of GalaxyVO */
+				if (currentGalaxy == null) {
+					comboGalaxy.selectedIndex = -1;
+				}
+				
+				foreground.removeAllChildren();
+				
+				var x:int = 0;
+				var y:int = 0;
+				
+				// Create the view for each galaxy and initialize it.
+				for (var i:int = 0; i < galaxies.length; i++) {
+					var body:GalaxyVO = GalaxyVO(galaxies.getItemAt(i));
+					var view:GalaxyView = new GalaxyView();
+
+					var w:Number = Math.random() * GalaxyView.BOUND_WIDTH;
+					var h:Number = Math.random() * GalaxyView.BOUND_HEIGHT;
+					view.init(body, x + w, y + h);
+					foreground.addChild(view);
+					
+					x += GalaxyView.BOUND_WIDTH;
+					if (x > STAGE_X - GalaxyView.IMAGE_WIDTH) {
+						x = 0;
+						y += GalaxyView.BOUND_HEIGHT;
+					}
+				}
+				
+				fadeIn();
+			}
+			
+			/** 
+			 * Handles RPC receival of a single galaxy.
+			 * Sets the current galaxy reference, and if "isDrawGalaxy" is set, 
+			 * clears the view screen and draws its children planetary systems. 
+			 */
+			private function _getGalaxy(e:ResultEvent):void {
+				if ((e.result as GalaxyVO) == null) {
+					Alert.show("Specified galaxy not found! Please verify input parameters.", "Invention Universe > Error");
+					fadeIn();
+					return;
+				}
+				
+				currentGalaxy = e.result as GalaxyVO;
+				comboGalaxy.text = currentGalaxy.name;
+				
+				if (isDrawGalaxy) {
+					currentBodyType = GalaxyVO;
+					
+ 					systemRemote.getSystemsByParentID(currentGalaxy.id);
+ 					isDrawGalaxy = false;
+ 				}
+ 				
+ 				if (isFindParentsRecursively) {
+ 					constellationRemote.getConstellationByID(currentGalaxy.parent_id);
+ 				}
+			}
+		
+			/** 
+			 * Handles RPC receival of a planetary system array.
+			 * Clears the view screen and draws the planetary systems. 
+			 */
+			private function _getSystems(e:ResultEvent):void {
+				if (e.result == null) {
+					Alert.show(NULL_RETURN_ERROR, "Invention Universe > Error");
+					return;
+				}
+				
+				currentBodyType = PlanetarySystemVO;
+				
+				planetarySystems = new ArrayCollection(e.result as Array);
+				
+				if (currentPlanetarySystem == null) {
+					comboPlanetarySystem.selectedIndex = -1;
+				}
+				// TODO Fix comboPlanetarySystem showing the wrong system.
+				
+				foreground.removeAllChildren();
+				
+				// After we load all of the systems of this galaxy, we need to load
+				// the planets for each system. Here we track the number of RPCs we'll
+				// need to make before this view is complete. During the RPCs in 
+				// _getPlanetsByParentID() we'll note how many planets have been loaded so far,
+				// and once ALL planets are loaded (planetGroupsToLoad == 0) we'll draw everything.
+				planetGroupsToLoad = planetarySystems.length;
+				
+				// If this galaxy is empty, just fade in and exit.
+				if (planetGroupsToLoad == 0) {
+					fadeIn();
+					return;
+				}
+				
+				var x:int = 0;
+				var y:int = 0;
+				
+				// Create the view for each planetary system and initialize it.
+				for (var i:int = 0; i < planetarySystems.length; i++) {
+					var body:PlanetarySystemVO = PlanetarySystemVO(planetarySystems.getItemAt(i));
+					planetarySystemViews[i] = new PlanetarySystemView();
+					
+					// Randomize location within the bounds of BOUND_WIDTH and BOUND_HEIGHT.
+					var w:Number = Math.random() * (PlanetarySystemView.BOUND_WIDTH - PlanetarySystemView.WIDTH);
+					var h:Number = Math.random() * (PlanetarySystemView.BOUND_HEIGHT - PlanetarySystemView.HEIGHT);
+					PlanetarySystemView(planetarySystemViews[i]).init(body, x + w, y + h);
+					foreground.addChild(planetarySystemViews[i]);
+					
+					planetRemote.getPlanetsByParentID(body.id);
+					
+					var overlapFactor:Number = 0.85; // Allow some small overlap.
+					x += PlanetarySystemView.BOUND_WIDTH * overlapFactor; 
+					if (x > STAGE_X - PlanetarySystemView.WIDTH) {
+						x = 0;
+						y += PlanetarySystemView.BOUND_HEIGHT * overlapFactor;
+					}
+				}
+
+				// (Don't fade in yet - wait for all planets to be loaded).
+			}
+			
+			/** 
+			 * Handles RPC receival of a single planetary system.
+			 * Sets the current planetary system reference, and if "isDrawPlanetarySystem" is set,
+			 * clears the view screen and draws the planetary system along with its siblings. 
+			 */
+			private function _getSystem(e:ResultEvent):void {			
+				if ((e.result as PlanetarySystemVO) == null) {
+					Alert.show("Specified planetary system not found! Please verify input parameters.", "Invention Universe > Error");
+					fadeIn();
+					return;
+				}
+				
+				currentPlanetarySystem = e.result as PlanetarySystemVO;
+				comboPlanetarySystem.text = currentPlanetarySystem.name;
+
+				if (isDrawPlanetarySystem) {
+					currentBodyType = PlanetarySystemVO;
+					
+					systemRemote.getSystemsByParentID(currentPlanetarySystem.parent_id);
+					isDrawPlanetarySystem = false;
+				}
+				
+				if (isFindParentsRecursively) {
+					galaxyRemote.getGalaxyByID(currentPlanetarySystem.parent_id);
+				}
+			}
+			
+			/** 
+			 * Handles PlanetService->getPlanetsByParentID().
+			 * 
+			 * Place resulting planets under its corresponding parent planetary 
+			 * system and draw. Should only be called by getSystemsByParentID(). 
+			 */
+			private function _getPlanets(e:ResultEvent):void {				
+				// @see PlanetService->getPlanetsByParentID for function return info.
+				if (e.result as Array == null && !(e.result as int)) {
+					Alert.show(NULL_RETURN_ERROR, "Invention Universe > Error");
+					return;
+				}
+				
+				var planets:Array = e.result as Array; /* of PlanetVO */
+				
+				var parentIndex:int = 0;
+				
+				if (planets != null) {
+					// Within the array of current planetary systems, get the index of the
+					// system that this planet belongs to.				
+					parentIndex = getSystemIndexByID(planets[0].parent_id);
+					
+					var parent:PlanetarySystemVO = PlanetarySystemVO(planetarySystems.getItemAt(parentIndex));
+					
+					// Set parent/child pointers.
+					parent.children = planets;
+					for each (var p:PlanetVO in planets) {
+						p.parent = parent;
+					}
+				} else if (e.result as int) {
+					// For empty planetary systems - @see PlanetService->getPlanetsByParentID().
+					// If the planetary system is empty, it's ID value is returned instead of an empty array
+					// because otherwise the system that this function call refers to is unknown. We do need
+					// the parent planetary system in the case of drawing vacant planets, which we want to do
+					// for empty planetary systems.			
+					parentIndex = getSystemIndexByID(e.result as int);		
+				}
+				
+				// Now that the children planets are set we can draw them.
+				// Note we call drawPlanets() even if the system has no planets - we draw vacant planets, if applicable.
+				PlanetarySystemView(planetarySystemViews[parentIndex]).drawPlanets();
+				
+				if (planetGroupsToLoad <= 1) { // If this is the last group of planets to load...
+					fadeIn();
+					
+					// If the current planetary system is specified, slowMoveTo to that system.					
+					if (currentPlanetarySystem != null) {						
+						var view:PlanetarySystemView = getSystemViewByID(currentPlanetarySystem.id); 
+						
+						slowMoveTo(
+							-view.x + width/2 - PlanetarySystemView.WIDTH/2, 
+							-view.y + height/2 - PlanetarySystemView.HEIGHT/2
+							);
+					}
+				} else {
+					planetGroupsToLoad -= 1;
+				}
+			}
+			
+			/////////////////////////////////////////////////////////////////////////
+			// HELPER FUNCTIONS FOR _getPlanets().
+			/////////////////////////////////////////////////////////////////////////
+			
+			/** Gets the index of the planetary system with specified 'id' in 'planetarySystems' array.
+			 *  Returns -1 if such a system does not exist.
+			 *  Necessary because system with id = 4 is not necessarily in planetarySystems[4], etc. */
+			private function getSystemIndexByID(pid:int):int {
+				for (var i:int = 0; i < planetarySystems.length; i++) {
+					if (PlanetarySystemVO(planetarySystems.getItemAt(i)).id == pid) {
+						return i;
+					}
+				}
+				return -1;
+			}
+			
+			/** Gets the PlanetarySystemView with specified 'id' in 'planetarySystemViews' array.
+			 *  Returns null if such a view does not exist. */
+			private function getSystemViewByID(vid:int):PlanetarySystemView {
+				for (var k:int = 0; k < planetarySystemViews.length; k++) {
+					var v:PlanetarySystemView = planetarySystemViews[k];
+					
+					if (v.planetarySystem.id == vid) {
+						return v;
+					}
+				}	
+				return null;
+			}
+			
+			/////////////////////////////////////////////////////////////////////////
+			// UI METHODS
+			/////////////////////////////////////////////////////////////////////////
+			
+			/** Loads default view over the whole universe. */
+			public function loadDefaultView():void {
+				fadeOut();
+				
+				galaxies = null;
+				planetarySystems = null;
+				
+				currentConstellation   = null;
+				currentGalaxy          = null;
+				currentPlanetarySystem = null;
+				
+				comboGalaxy.text = comboPlanetarySystem.text = "";
+				
+				currentBodyType = ConstellationVO;
+				constellationRemote.getAllConstellations();
+			}
+			
+			/** Goes to planet-view of current user, if logged in. */
+			public function home():void {
+				if (currentUser != null) {
+					if (isHome) {
+						return;
+					}
+					
+					isHome = true;
+					
+					zoomIn(currentUser);
+				} else {
+					Alert.show("Please log in first!", "Invention Universe > Error");
+				}
+			}
+			
+			/** Refreshes the minimap if showing. */
+			public function refreshMinimap():void {
+				if (minimap.isShowing) {
+					minimap.refresh();
+				}
+			}
+			
+			/** @see Rocket.isFrozen. */
+			public function toggleRocketFrozen(isFrozen:Boolean):void {
+				rocket.isFrozen = isFrozen;
+			}
+			
+			/** Navigates to user-specifed location in the address bar. */
+			private function navigate(e:Event, isSelect:Boolean = false):void {
+				var combo:ComboBox = e.currentTarget as ComboBox;
+				
+				// If this method was executed from a ComboBox 'change' event, 
+				// but due to text input rather than item selection, exit.
+				// We want to navigate on 'enter' for text input, but on 'change' for selection.
+				if (isSelect && combo.selectedIndex < 0) {
+					return;
+				}
+				
+				fadeOut();
+				
+				if (combo == comboPlanetarySystem) {
+					isDrawPlanetarySystem = true;
+					isFindParentsRecursively = true;
+					
+					systemRemote.getSystemByName(comboPlanetarySystem.text);
+				} else if (combo == comboGalaxy) {
+					isDrawGalaxy = true;
+					isFindParentsRecursively = true;
+					
+					galaxyRemote.getGalaxyByName(comboGalaxy.text);
+					
+					planetarySystems = null;
+				} else if (combo == comboConstellation) {
+					isDrawConstellation = true;
+					
+					constellationRemote.getConstellationByName(comboConstellation.text);
+					
+					galaxies = null;
+					planetarySystems = null;
+				} else {
+					// All fields are blank, so load universe-level view.
+					constellationRemote.getAllConstellations();
+				}
+			}
+			
+			/** Checks whether the rocket is close enough to specified position (x, y) and performs zoomIn(body) if it is. */
+			public function testRangeAndZoomIn(x:Number, y:Number, body:Object):void {
+				if (isSearch) {
+					zoomIn(body); // Don't test range for search results.
+					return;
+				}
+				
+				var dx:Number = rocket.x - x - foreground.x;
+				var dy:Number = rocket.y - y - foreground.y;
+				var distance:Number = Math.sqrt(dx*dx + dy*dy);
+				
+				if (distance <= Rocket.RANGE) {
+					zoomIn(body);
+				} else {
+					// Display a notification that rocket is too far away.									
+					fadeInRocketTooFar.stop();
+					fadeOutRocketTooFar.stop();
+					
+					rocketTooFar.x = x + foreground.x + 10;
+					rocketTooFar.y = y + foreground.y + 10;
+					
+					rocketTooFar.visible = true;
+				}
+			}
+			
+			/** Zooms into a celestial body. */
+			private function zoomIn(body:Object):void {
+				// If control panel is disabled, we are currently in the middle of a 
+				// prior fadeOut()/RPC, so exit. @see fadeOut().
+				if (!isControlPanelEnabled) {
+					return;
+				}
+
+				fadeOut();
+				
+				// Update current celestial body/type pointers,
+				// retrieve the corresponding children bodies and update address bar.
+				if (body is ConstellationVO) {
+					currentConstellation = ConstellationVO(body);					
+					galaxyRemote.getGalaxiesByParentID(currentConstellation.id);
+					
+					comboConstellation.text = currentConstellation.name;
+				} else if (body is GalaxyVO) {
+					currentGalaxy = GalaxyVO(body);
+					systemRemote.getSystemsByParentID(currentGalaxy.id);
+					
+					comboGalaxy.text = currentGalaxy.name;
+				} else if (body is PlanetVO) {
+					// We already have planet data so just stop the fade animation,
+					// clean up the old views, update the address bar and set up the new view.
+					var currentPlanet:PlanetVO = PlanetVO(body);
+					currentBodyType = PlanetVO;
+					
+					foreground.removeAllChildren();
+					
+					// Fade out may not be done playing yet - don't want to see user view until fade-in.
+					fade.stop();
+					foreground.alpha = 0.0;
+					
+					currentPlanetView = new UserView();
+					currentPlanetView.init(PlanetVO(currentPlanet));
+					foreground.addChild(currentPlanetView);
+					
+					// Since the view is a child of the foreground, need to reset its position
+					// otherwise it may not be properly centered on screen.
+					foreground.x = foreground.y = 0; 
+	
+					// Disable universe scrolling.
+					navigation.disable();
+					try {
+						removeChild(rocket);
+					} catch (e:Error) {
+						trace("Cannot remove rocket as child, since it's not a child to begin with!");
+					}
+					
+					minimap.visible = false;
+					
+					// Update parent references.
+					if (!isSearch && !isHome) {
+						// This means that we got here via click-navigation.
+						currentPlanetarySystem = PlanetVO(body).parent;
+						comboPlanetarySystem.text = currentPlanetarySystem.name;
+						
+						fadeIn();
+					} else {
+						// This means that we got here via the home button or a search, therefore
+						// parent references aren't set and we need to do that now.
+						isFindParentsRecursively = true;
+						isFadeInAfterParentsFound = true;
+						systemRemote.getSystemByID(PlanetVO(body).parent_id);
+					}
+					
+					// If zooming into a planet that's not the logged-in user, switch off isHome.
+					// This happens when searching from your home planet.
+					if (currentPlanet != currentUser) {
+						isHome = false;
+					}
+					
+					// Increment the planet view count via remoting.
+					monitoringRemote.incrementPlanetViewCount(currentPlanet.id);
+				}
+			}
+			
+			/** Zooms out of current celestial body view. Does nothing if already at minimum zoom. */
+			private function zoomOut():void {
+				// If already at minimum zoom, do nothing.
+				if (currentBodyType == ConstellationVO || currentBodyType == null) {
+					return;
+				}
+				
+				// If we're viewing a planet and that planet view is in the zoomed state,
+				// then just zoom out of that state.
+				if (currentBodyType == PlanetVO && 
+					currentPlanetView.currentState != "" && currentPlanetView.currentState != null) 
+					{
+					currentPlanetView.changeState("");
+					return;
+				}
+				
+				isHome = false;
+				
+				fadeOut();
+				
+				// Zoom out according to what's currently being viewed.
+				// Clean the foreground, update the current body type and draw the next 
+				// higher level of celestial bodies. Also, update the address bar.
+				if (currentBodyType == GalaxyVO) {					
+					constellationRemote.getAllConstellations();
+					currentBodyType = ConstellationVO;
+					
+					currentConstellation = null;
+					
+					comboConstellation.text = comboGalaxy.text = comboPlanetarySystem.text = "";
+					
+					galaxies = null;
+					planetarySystems = null;
+				} else if (currentBodyType == PlanetarySystemVO) {
+					galaxyRemote.getGalaxiesByParentID(currentGalaxy.parent_id);
+					currentBodyType = GalaxyVO;
+					
+					currentGalaxy = null;
+					
+					comboGalaxy.text = comboPlanetarySystem.text = "";
+					
+					planetarySystems = null;
+				} else if (currentBodyType == PlanetVO) {
+					systemRemote.getSystemsByParentID(currentPlanetarySystem.parent_id);
+					currentBodyType = PlanetarySystemVO;
+					
+					currentPlanetarySystem = null;
+					currentPlanetView = null;
+					
+					comboPlanetarySystem.text = "";
+					
+					navigation.enable();
+					addChild(rocket);
+					
+					minimap.visible = true;
+				}	
+			}
+			
+			/** Performs a planet/project search from user-specified query in search box. */
+			private function search():void {
+				if (txtSearch.text == "") {
+					Alert.show("Please enter an input query to search.", "Invention Universe > Error");
+					return;
+				}
+				
+				isSearch = true;
+				
+				// Search both planets and projects.
+				var searchView:SearchView = new SearchView();
+
+				PopUpManager.addPopUp(searchView, this, true);
+				PopUpManager.centerPopUp(searchView);
+				
+				searchView.init(txtSearch.text);
+			}
+			
+			/** Starts registration process. */
+			public function startRegistration():void {
+				isRegister = true;
+				
+				loadDefaultView();
+				
+				Alert.show("Please select a celestial location for your planet by navigating to your desired planetary system and clicking on a vacant planet. A vacant planet looks like a white, dotted circle.\n\n" + 
+					"Certain systems may be full of planets already and do not contain vacant spots, please choose another one if so.", "Invention Universe > Register");
+			}
+			
+			/** Starts last step of registration process after user has selected a vacant planet. */
+			public function finishRegistration(planetarySystem:PlanetarySystemVO):void {
+				if (!isRegister) {
+					return; // If registration never started, exit.
+				}
+				
+				rocket.hide();
+				
+				isRegister = false;
+				
+				var registerView:RegistrationView = new RegistrationView();
+				registerView.init(planetarySystem);
+				
+				PopUpManager.addPopUp(registerView, this, true);
+				PopUpManager.centerPopUp(registerView);
+			}
+			
+			/** Open news panel as a pop-up. */
+			public function openNews():void {
+				// Temporarily used for news feature.
+				var newsView:NewsView = new NewsView();
+
+				isSearch = true;
+				PopUpManager.addPopUp(newsView, this, true);
+				PopUpManager.centerPopUp(newsView);
+
+				newsView.init();
+			}
+			
+			/** Launches WelcomeView as a pop-up. */
+			public function openLogin():void {
+				var welcomeView:WelcomeView = new WelcomeView();
+				
+				PopUpManager.addPopUp(welcomeView, this, true);
+				PopUpManager.centerPopUp(welcomeView);
+				
+				welcomeView.x = width / 2.0 + 400 - welcomeView.width;
+				welcomeView.y = height / 2.0 - welcomeView.height / 2.0;
+			}
+			
+			/** Finishes login process. */
+			public function finishLogin(planet:PlanetVO, goHome:Boolean):void {
+				currentUser = planet;
+				
+				if (goHome) {
+					home();
+				}
+				
+				btnLogIn.visible = false;
+				btnLogOut.visible = true;
+				
+				openNews();
+			}
+
+			/** 
+			 * Handles PlanetService->logout(). 
+			 * Displays a popup showing whether logout was successful. 
+			 */
+			private function _logOut(e:ResultEvent):void {
+				var isLoggedOut:Boolean = e.result as Boolean;
+				
+				if (!isLoggedOut) {
+					Alert.show("Sorry, cannot log out at this time. Please try again later.", "Invention Universe > Error");
+					return;
+				}
+				
+				Alert.show("Log out successful!", "Invention Universe > Log Out");
+				
+				currentUser = null;
+				
+				btnLogIn.visible = true;
+				btnLogOut.visible = false;			
+			}
+			
+			/** Opens uploads panel as a pop-up. */
+			private function openUploads():void {
+				var uploadView:UploadView = new UploadView();
+				uploadView.init(this);
+				
+				PopUpManager.addPopUp(uploadView, this, true);
+				PopUpManager.centerPopUp(uploadView);
+			}
+			
+			/** Fades out foreground elements and adds RPC progress bar. */
+			public function fadeOut():void {				
+				// Disable all navigational buttons, event listeners for rocket/navigation. 
+				// Re-enable during fadeIn().
+				
+				isControlPanelEnabled = false;
+				timer.stop();
+				rocket.hide();
+				
+				fade.stop();
+				fade.play([foreground, background, rocket], true);
+				
+				foreground.graphics.clear(); // Erase misc. graphics e.g. rocket target ring.
+
+				PopUpManager.addPopUp(progressBar, this);
+				PopUpManager.centerPopUp(progressBar);
+				
+				// Hide the minimap.
+				if (minimap.isShowing) {
+					minimap.toggle();
+				}
+			}
+			
+			/** Removes RPC progress bar and fades in foreground elements. */
+			public function fadeIn():void {
+				// Re-enable RPCs and other stuff.
+				
+				isControlPanelEnabled = true;
+				if (!timer.running) {
+					timer.start();
+				}
+				rocket.show();
+				
+				// Redraw a random background - doesn't make sense for the star scene
+				// to be exactly the same after you zoom in or out.
+				background.randomize();
+				
+				fade.stop();
+				fade.play([foreground, background, rocket]);
+
+				PopUpManager.removePopUp(progressBar);
+			}
+			
+			/** Brings every control panel component to front of container child list. */
+			private function bringControlPanelToFront():void {
+				setChildIndex(base,       numChildren-1);
+				setChildIndex(btnLink,    numChildren-1);
+				setChildIndex(btnHome,    numChildren-1);
+				setChildIndex(btnLogIn,   numChildren-1);
+				setChildIndex(btnLogOut,  numChildren-1);
+				setChildIndex(btnUpload,  numChildren-1);
+				setChildIndex(btnWebcast, numChildren-1);
+				setChildIndex(btnSearch,  numChildren-1);
+				setChildIndex(txtSearch,  numChildren-1);
+//				setChildIndex(btnNews,    numChildren-1);
+				setChildIndex(btnBack,    numChildren-1);
+				setChildIndex(comboConstellation,   numChildren-1);
+				setChildIndex(comboGalaxy,          numChildren-1);
+				setChildIndex(comboPlanetarySystem, numChildren-1);
+			}
+			
+			// Unfortunately we can't do anything more useful with Zend_Amf remoting
+			// faults since it obfuscates all of the exception information passed from the 
+			// server-side's PHP code. Best we can do is hide unsightly faults. This 
+			// method is used for ALL remoting faults in this application.
+			/** Handles remoting faults by hiding them. */
+			public static function remoteFaultListener(e:FaultEvent):void {
+				Alert.show("Sorry, something unexpected happened.\nPlease try again later.", "Invention Universe > Error");
+				trace(e.message.toString());
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- COMPONENTS -->
+	<!-- Control panel -->		
+	<mx:Image id="base" 
+		width="1206" height="139"
+		x="{width/2 - 1207/2}" y="{height - 170 + 38}"
+		source="@Embed(source='assets/swf/control_panel/base_plain.swf')"
+		mouseOver="toggleRocketFrozen(true);"
+		mouseOut="toggleRocketFrozen(false);" />
+		
+	<mx:Image id="btnLink" 
+		width="176" height="32"
+		x="{width/2 - 1207/2 + 897}" y="{height - 170 + 135}"
+		source="@Embed(source='assets/swf/control_panel/biy_link.swf')"
+		click="if (isControlPanelEnabled) navigateToURL(new URLRequest('http://www.build-it-yourself.com'), '_blank');"
+		mouseOver="toggleRocketFrozen(true);"
+		mouseOut="toggleRocketFrozen(false);" />
+		
+	<mx:Image id="btnHome"
+		width="119" height="46"
+		x="{width/2 - 1207/2 + 550}" y="{height - 170 + 64}"
+		source="@Embed(source='assets/swf/control_panel/home.swf')"
+		click="if (isControlPanelEnabled) home();"
+		mouseOver="toggleRocketFrozen(true);"
+		mouseOut="toggleRocketFrozen(false);" />
+		
+	<mx:Image id="btnLogIn"
+		width="103" height="64"
+		x="{width/2 - 1207/2 + 556}" y="{height - 170 + 108}"
+		source="@Embed(source='assets/swf/control_panel/login.swf')"
+		click="if (isControlPanelEnabled) openLogin();"
+		mouseOver="toggleRocketFrozen(true);"
+		mouseOut="toggleRocketFrozen(false);" />
+		
+	<mx:Image id="btnLogOut"
+		width="103" height="64"
+		x="{width/2 - 1207/2 + 556}" y="{height - 170 + 108}"
+		visible="false"
+		source="@Embed(source='assets/swf/control_panel/logout.swf')"
+		click="if (isControlPanelEnabled) planetRemote.logOut();"
+		mouseOver="toggleRocketFrozen(true);"
+		mouseOut="toggleRocketFrozen(false);" />
+
+	<mx:Image id="btnUpload"
+		width="95" height="63"
+		x="{width/2 - 1207/2 + 456}" y="{height - 170 + 59}"
+		source="@Embed('assets/swf/control_panel/upload.swf')"
+		click="if (isControlPanelEnabled) openUploads();"
+		mouseOver="toggleRocketFrozen(true);"
+		mouseOut="toggleRocketFrozen(false);" />
+		
+	<mx:Image id="btnWebcast"
+		width="86" height="79"
+		x="{width/2 - 1207/2 + 668}" y="{height - 170 + 55}"
+		source="@Embed(source='assets/swf/control_panel/webcast.swf')"
+		mouseOver="toggleRocketFrozen(true);"
+		mouseOut="toggleRocketFrozen(false);" 
+		/>
+		
+	<mx:Image id="btnSearch"
+		width="81" height="45"
+		x="{width/2 - 1207/2 + 272}" y="{height - 170 + 116}"
+		source="@Embed(source='assets/swf/control_panel/search.swf')"
+		click="if (isControlPanelEnabled) search();"
+		mouseOver="toggleRocketFrozen(true);"
+		mouseOut="toggleRocketFrozen(false);" />
+	
+	<mx:TextInput id="txtSearch" 
+		width="148" height="31" 
+		x="{width/2 - 1207/2 + 122}" y="{height - 170 + 130}"
+		backgroundColor="#5798BF"
+		borderStyle="none"
+		focusAlpha="0.0"
+		shadowDistance="0"
+		paddingTop="5"
+		paddingLeft="5"
+		backgroundImage="@Embed(source='assets/swf/control_panel/search_input.swf')"
+		enter="if (isControlPanelEnabled) search();"
+		mouseOver="toggleRocketFrozen(true);"
+		mouseOut="toggleRocketFrozen(false);" />
+	
+	<!--
+	<mx:Image id = "btnNews"
+		width="81" height="51"
+		x="{width/2 - 1207/2 + 40}" y="{height - 170 + 111}" 
+		source="@Embed(source='assets/swf/control_panel/news.swf')"
+		click="if (isControlPanelEnabled) openNews();"
+		mouseOver="toggleRocketFrozen(true);"
+		mouseOut="toggleRocketFrozen(false);" />
+	-->
+		
+	<mx:Image id="btnBack"
+		width="114" height="115"
+		x="{width/2 - 1207/2 + 145}" y="{height - 170 + 1}"
+		source="@Embed(source='assets/swf/control_panel/back.swf')"
+		click="if (isControlPanelEnabled) zoomOut();"
+		mouseOver="toggleRocketFrozen(true);"
+		mouseOut="toggleRocketFrozen(false);" />
+		
+	<mx:ComboBox id="comboConstellation" 
+		width="82" height="23"
+		x="{width/2 - 1207/2 + 850}" y="{height - 170 + 122}"
+		textInputStyleName="comboConstellationText"
+		upSkin="@Embed(source='assets/swf/control_panel/combo.swf')"
+		dataProvider="{constellations}" 
+		labelField="name" 
+		editable="true" 
+		change="if (isControlPanelEnabled) navigate(event, true);" 
+		enter="if (isControlPanelEnabled) navigate(event);"
+		mouseOver="toggleRocketFrozen(true);"
+		mouseOut="toggleRocketFrozen(false);" />
+		
+	<mx:ComboBox id="comboGalaxy" 
+		width="82" height="23"
+		x="{width/2 - 1207/2 + 942}" y="{height - 170 + 121}"
+		textInputStyleName="comboGalaxyText"
+		dataProvider="{galaxies}" 
+		labelField="name" 
+		editable="true" 
+		change="if (isControlPanelEnabled) navigate(event, true);" 
+		enter="if (isControlPanelEnabled) navigate(event);"
+		mouseOver="toggleRocketFrozen(true);"
+		mouseOut="toggleRocketFrozen(false);" />
+		
+	<mx:ComboBox id="comboPlanetarySystem" 
+		width="83" height="23"
+		x="{width/2 - 1207/2 + 1032}" y="{height - 170 + 121}"
+		textInputStyleName="comboPlanetarySystemText"
+		dataProvider="{planetarySystems}" 
+		labelField="name" 
+		editable="true" 
+		change="if (isControlPanelEnabled) navigate(event, true);" 
+		enter="if (isControlPanelEnabled) navigate(event);"
+		mouseOver="toggleRocketFrozen(true);"
+		mouseOut="toggleRocketFrozen(false);" />
+
+	<!-- Notice displayed when trying to warp to a celestial body that's too far from the rocket. -->
+	<mx:Panel id="rocketTooFar" 
+		width="145"
+		height="40"
+		backgroundColor="yellow"
+		borderColor="yellow"
+		cornerRadius="0"
+		headerHeight="0"
+		visible="false" 
+		showEffect="fadeInRocketTooFar">
+		<mx:Text width="100%" color="black" fontWeight="bold" text="Rocket too far away! Move closer to warp." />
+	</mx:Panel>
+	
+	<!-- EFFECTS -->	
+	<mx:Fade id="fade" alphaFrom="0.0" alphaTo="1.0" />
+	
+	<!-- Playing fadeInRocketTooFar will fade in the notice, then fade it out. -->
+	<mx:Fade id="fadeInRocketTooFar" 
+		alphaFrom="0.0" alphaTo="1.0" 
+		duration="1000" 
+		easingFunction="{Exponential.easeOut}"
+		effectEnd="fadeOutRocketTooFar.play([rocketTooFar]);" />
+	<mx:Fade id="fadeOutRocketTooFar" 
+		alphaFrom="1.0" alphaTo="0.0" 
+		duration="1000"
+		easingFunction="{Exponential.easeIn}"
+		effectEnd="rocketTooFar.visible = false;" />
+		
+	<mx:Move id="slide" />
+	
+	<!-- REMOTE OBJECTS -->
+	<mx:RemoteObject id="constellationRemote" destination="zend" source="ConstellationService" fault="remoteFaultListener(event)">
+		<mx:method name="getAllConstellations" result="_getAllConstellations(event)" />
+		<mx:method name="getConstellationByName" result="_getConstellation(event)" />
+		<mx:method name="getConstellationByID" result="_getConstellation(event)" />
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="galaxyRemote" destination="zend" source="GalaxyService" fault="remoteFaultListener(event)">
+		<mx:method name="getGalaxiesByParentID" result="_getGalaxies(event)" />
+		<mx:method name="getGalaxyByName" result="_getGalaxy(event)" />
+		<mx:method name="getGalaxyByID" result="_getGalaxy(event)" />
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="systemRemote" destination="zend" source="PlanetarySystemService" fault="remoteFaultListener(event)">
+		<mx:method name="getSystemsByParentID" result="_getSystems(event)" />
+		<mx:method name="getSystemByName" result="_getSystem(event)" />
+		<mx:method name="getSystemByID" result="_getSystem(event)" />
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="planetRemote" destination="zend" source="PlanetService" fault="remoteFaultListener(event)">
+		<mx:method name="getPlanetsByParentID" result="_getPlanets(event)" />
+		<mx:method name="logOut" result="_logOut(event)" />
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="monitoringRemote" destination="zend" source="UsageMonitor">
+		<mx:method name="incrementPlanetViewCount" />
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="statisticsRemote" destination="zend" source="StatisticsService">
+		<mx:method name="performStatistics" />
+	</mx:RemoteObject>
+</mx:Application>

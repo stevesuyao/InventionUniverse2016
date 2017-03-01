@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The edit avatar (user profile image) pop-up window.
+-->
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml"
+	title="Edit account > Avatar"
+	layout="vertical">
+
+	<mx:Style>
+		.radioButton {
+			color: white;
+		}
+	</mx:Style>
+
+	<mx:Script>
+		<![CDATA[
+			import models.CelestialBody.PlanetVO;
+			import mx.controls.Alert;
+			import mx.core.Application;
+			import mx.graphics.codec.PNGEncoder;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			/** Default avatar_url value. */
+			static private var DEFAULT_AVATAR_URL:String = "assets/images/astronaut.jpg";
+			
+			/** Parent view. */
+			private var accountView:EditAccountView;
+
+			/** The current user of the avatar to be managed. */
+			private var planet:PlanetVO;
+			
+			/** Encoded image data. */
+			private var encData:ByteArray;
+			
+			/** FileReference to local image file. For file browsing. */
+			private var fileRef:FileReference; 
+			
+			/** File filter for fileRef. */
+			private var fileFilters:Array;
+			
+			public function init(accountView:EditAccountView, planet:PlanetVO):void {
+				this.accountView = accountView;
+				planetRemote.getPlanetByID(planet.id); // Always get the updated planet data.
+				
+				fileRef = new FileReference();
+				fileRef.addEventListener(Event.SELECT, _selectFile);
+				fileRef.addEventListener(Event.COMPLETE, _completeLoad);
+				
+				fileFilters = [new FileFilter("Image files", "*.jpg; *.png; *.bmp; *.gif")];
+				
+				callLater(initLater);
+			}
+			
+			/** Initialize all UI components. */
+			private function initLater():void {
+				if (planet == null) {
+					callLater(initLater);
+					return;
+				}
+				
+				if (planet.avatar_url == DEFAULT_AVATAR_URL) {
+					optDefault.selected = true;
+				} else {
+					optCustom.selected = true;
+				}
+				radioChange();
+			}
+			
+			/** Select preview image mode. */
+			private function selectPreview(customView:Boolean):void {
+				if (customView) {
+					if ( fileRef.data != null ) {
+						imgAvatar.data = fileRef.data;
+						return;
+					}
+
+					imgAvatar.load(planet.avatar_url);
+					return;
+				}
+				
+				imgAvatar.load(DEFAULT_AVATAR_URL);
+			}
+			
+			/** FileRef: a file is selected. */
+			private function _selectFile(e:Event):void {
+				txtFilename.text = "Loading...";
+				btnOK.enabled = false;
+				fileRef.load();
+			}
+			
+			/** FileRef: a file completes loading. */
+			private function _completeLoad(e:Event):void {
+				txtFilename.text = fileRef.name;
+				imgAvatar.data = fileRef.data;
+				btnOK.enabled = true;
+			}
+			
+			/** When selected radio button is changed. */
+			private function radioChange():void {
+				itemOption.visible = optCustom.selected;
+				selectPreview( itemOption.visible );
+			}
+			
+			/** Encode image data. */
+			private function transcode():void {
+				var bmpData:BitmapData; // Image data container
+				var pngEnc:PNGEncoder; // Encoder
+				
+				// Take a snapshot from imgAvatar.
+				bmpData = new BitmapData(128, 128, true, 0x00000000);
+				
+				// Transform matrix. Computer the center alignment.
+				var matrix:Matrix = new Matrix();
+				matrix.translate(
+					(128 - imgAvatar.contentWidth) >> 1, 
+					(128 - imgAvatar.contentHeight) >> 1 );
+				bmpData.draw(imgAvatar, matrix);
+				
+				// Encode the snapshot
+				pngEnc = new PNGEncoder();
+				encData = pngEnc.encode(bmpData);
+			}
+			
+			/** When button "OK" is clicked. */
+			private function ok():void {
+				btnOK.enabled = false;
+				
+				if ( optCustom.selected ) {
+					transcode();
+					planetRemote.setCustomAvatar(planet, encData);
+				} else {
+					planetRemote.setDefaultAvatar(planet);
+				}
+			}
+			
+			/** Close this form. */
+			private function close():void {
+				PopUpManager.removePopUp(this);
+			}
+			
+			/** Handles planetRemote.getPlanetByID(). */
+			private function _getPlanetByID(e:ResultEvent):void {
+				planet = e.result as PlanetVO;
+			}
+			
+			/** Handles planetRemote.setDefaultAvatar(). */
+			private function _setDefaultAvatar(e:ResultEvent):void {
+				var isSuccess:Boolean = e.result as Boolean;
+				
+				if (isSuccess) {
+					Alert.show("Default avatar is set.", "Edit account > Avatar");
+					
+					// Update application planet.
+					var id:int = planet.id;
+					planet = null;
+					planetRemote.getPlanetByID(id);
+					callLater(_close);
+					
+					return;
+				} else {
+					Alert.show("Operation failed.", "Edit account > Avatar");
+					btnOK.enabled = true;
+				}
+			}
+			
+			/** Handles planetRemote.setCustomAvatar(). */
+			private function _setCustomAvatar(e:ResultEvent):void {
+				var isSuccess:Boolean = e.result as Boolean;
+				
+				if (isSuccess) {
+					Alert.show("Customized avatar is set.", "Edit account > Avatar");
+					
+					// Update application planet.
+					var id:int = planet.id;
+					planet = null;
+					planetRemote.getPlanetByID(id);
+					callLater(_close);
+					
+					return;
+				} else {
+					Alert.show("Operation failed.", "Edit account > Avatar");
+					btnOK.enabled = true;
+				}
+			}
+			
+			private function _close():void {
+				if (planet == null) {
+					callLater(_close);
+					return;
+				}
+				
+				Application.application.currentUser.avatar_url = planet.avatar_url;
+				close();
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- COMPONENTS -->
+	<mx:Form width="100%" height="100%">
+		<mx:FormItem label="Avatar type">
+			<mx:RadioButton id="optDefault" label="Default" click="radioChange();" styleName="radioButton" />
+			<mx:RadioButton id="optCustom" label="User customized" click="radioChange();" styleName="radioButton" />
+		</mx:FormItem>
+		
+		<mx:FormItem id="itemOption" label="File">
+			<mx:TextInput id="txtFilename" width="100%" editable="false" />
+			<mx:Button label="Browse" click="fileRef.browse(fileFilters);" />
+		</mx:FormItem>
+		
+		<mx:HRule width="100%" height="1" />
+		<mx:FormItem label="Preview">
+			<mx:Image id="imgAvatar" width="128" height="128" visible="true" />
+			<mx:Label text="Best resolution is 128x128." />
+		</mx:FormItem>
+	</mx:Form>	
+	
+	<mx:ControlBar width="100%" horizontalAlign="right">
+		<mx:Button id="btnOK" label="OK" click="ok();" />
+		<mx:Button label="Cancel" click="close();" />
+	</mx:ControlBar>
+	
+	<!-- REMOTE OBJECTS -->
+	<mx:RemoteObject id="planetRemote" destination="zend" source="PlanetService" fault="InventionUniverse.remoteFaultListener(event)" showBusyCursor="true">
+		<mx:method name="getPlanetByID" result="_getPlanetByID(event);" />
+		<mx:method name="setDefaultAvatar" result="_setDefaultAvatar(event);" />
+		<mx:method name="setCustomAvatar" result="_setCustomAvatar(event);" />
+	</mx:RemoteObject>
+</mx:Panel>

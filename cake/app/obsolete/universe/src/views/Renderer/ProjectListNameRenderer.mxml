@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox xmlns:mx="http://www.adobe.com/2006/mxml"
+	horizontalScrollPolicy="off" verticalScrollPolicy="off" cachePolicy="on"
+	horizontalAlign="center" verticalAlign="middle">
+	<mx:Text id="txtName" width="100%" text="{data.name}" selectable="false" />
+	<mx:Image id="imgThumbnail" height="120" source="{data.thumbnail_url}" /> 
+</mx:VBox>

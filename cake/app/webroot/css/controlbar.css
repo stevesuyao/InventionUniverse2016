@@ -1,0 +1,58 @@
+#controlbar {
+    position:fixed;
+    bottom:0;
+    width:70%;
+    height:20%;
+    margin-left:-3%;
+    margin-bottom:2.8%; 
+}
+#button-upload-normal
+{
+    margin-left: 33.36%;
+    margin-top: 3.85%;
+    position:fixed;
+}
+#button-upload-hover
+{
+    margin-left: 33.2%;
+    margin-top: 3.1%;
+    position:fixed;
+}
+#button-upload
+{
+    cursor: pointer;
+    margin-left: 1.4%;
+    margin-top: 1%;
+}
+#button-search-normal
+{
+    margin-left: 19.36%;
+    margin-top: 8.55%;
+    position:fixed;
+}
+#button-search-hover
+{
+    margin-left: 19.80%;
+    margin-top: 8.4%;
+    position:fixed;
+}
+#button-search
+{
+    cursor: pointer;
+    margin-left: 1.4%;
+    margin-top: 1%;
+}
+#search-box
+{
+    margin-left: 7%;
+    margin-top: 9.6%;
+    position:fixed;
+}
+.search-box
+{
+    border-width: 5px;
+    background-color: #EEEEEE;
+    width: 120%;
+    border-radius: 20%;
+}
+

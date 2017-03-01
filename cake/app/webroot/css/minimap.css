@@ -1,0 +1,14 @@
+#minimap1 {
+	position:absolute;
+    top:10%;
+	left:0%;
+	width:30px;
+	height:150px;
+}
+#minimap2 {
+	position:absolute;
+    top:10%;
+	right:0%;
+	width:30px;
+	height:150px;
+}

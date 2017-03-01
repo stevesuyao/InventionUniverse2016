@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The resume editing pop-up window.
+-->
+<mx:Panel 
+	xmlns:mx="http://www.adobe.com/2006/mxml" 
+	layout="vertical"
+	title="Edit resume">
+  	
+	<mx:Script>
+		<![CDATA[
+			import models.CelestialBody.PlanetVO;
+			import flash.net.FileReference;
+			import mx.rpc.events.ResultEvent;
+			import mx.controls.Alert;
+			import mx.managers.PopUpManager;
+			import flash.net.navigateToURL;
+			import flash.net.URLRequest;
+
+			/** The current user. */
+			private var planet:PlanetVO;
+			
+			/** For file browsing and loading. */
+			private var fileRef:FileReference;
+			
+			/** Extension filters for file browser. */
+			private var fileFilters:Array; /* of FileFilter */
+			
+			/** The selected project file to be uploaded. */
+			private var fileData:ByteArray;
+			
+			public function init(planet:PlanetVO):void {
+				this.planet = planet;
+				
+				fileRef = new FileReference();
+				fileRef.addEventListener(Event.SELECT, _selectUpload);
+				fileRef.addEventListener(Event.COMPLETE, _completeUpload);
+				
+				// This is also hard-coded into the PlanetService controller, make sure changes are propagated there.
+				fileFilters = [new FileFilter("Resume File", "*.doc; *.docx; *.pdf; *.ppt; *.pptx")];
+			}
+			
+			private function _selectUpload(e:Event):void {
+				// Limit file size.
+				if (fileRef.size > PlanetVO.MAX_RESUME_SIZE) {
+					Alert.show("The selected file is too big!", "Invention Universe > Resume");
+					return;
+				}
+				
+				fileRef.load();
+				
+				// Disable submit until file is loaded.
+				btnSubmit.enabled = false;
+			}
+			
+			private function _completeUpload(e:Event):void {
+				// Show name of selected file in disabled text field.
+				inputURL.text = fileRef.name;
+				
+				// Extract loaded file as a byte array.
+				fileData = new ByteArray;
+				fileRef.data.readBytes(fileData, 0, fileRef.data.length);
+				
+				// Re-enable submit.
+				btnSubmit.enabled = true;
+			}
+			
+			private function submit():void {
+				if (fileData == null) {
+					Alert.show("Please select a file to upload.", "Invention Universe > Resume");
+					return;
+				}
+				
+				planetRemote.updateResume(planet, fileRef.type, fileData);
+			}
+			
+			private function _updateResume(e:ResultEvent):void {
+				var isSuccess:Boolean = e.result as Boolean;
+				
+				if (!isSuccess) {
+					Alert.show(InventionUniverse.NULL_RETURN_ERROR, "Invention Universe > Error");
+					return;
+				}
+				
+				Alert.show("Successfully updated resume!", "Invention Universe > Resume");
+
+				PopUpManager.removePopUp(this);	
+			}
+			
+			private function downloadResume():void {
+				if (planet.resume_url != null) {
+					navigateToURL(new URLRequest(InventionUniverse.UPLOADS_PATH + planet.resume_url));
+				} else {
+					Alert.show("You don't have a resume on file yet. Please upload one below!", "Invention Universe > Resume");
+				}
+			}
+			
+			/** Closes this pop-up window. */
+			private function close():void {
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</mx:Script>
+	
+	<!-- COMPONENTS -->
+	<mx:Form width="100%">
+		<mx:FormHeading label="View your resume..." />
+		<mx:FormItem>
+			<mx:Button label="Download!" click="downloadResume()" />
+		</mx:FormItem>
+		
+		<mx:FormHeading label="...or upload one!" />
+		<mx:FormItem label="URL" width="100%">
+			<mx:TextInput id="inputURL" width="100%" enabled="false" />
+			<mx:Button label="Upload a file!" click="fileRef.browse(fileFilters)" />
+		</mx:FormItem>
+		
+		<mx:HRule width="100%" />
+		
+		<mx:FormItem>
+			<mx:Button id="btnSubmit" label="Submit" click="submit()" />
+		</mx:FormItem>
+	</mx:Form>
+	
+	<mx:ControlBar width="100%">
+		<mx:Spacer width="100%" />
+		<mx:Button label="Cancel" click="close()" />
+	</mx:ControlBar>
+	
+	<!-- REMOTE OBJECTS -->
+	<mx:RemoteObject id="planetRemote" destination="zend" source="PlanetService" fault="InventionUniverse.remoteFaultListener(event)" showBusyCursor="true">
+		<mx:method name="updateResume" result="_updateResume(event)" />
+	</mx:RemoteObject>
+	
+</mx:Panel>

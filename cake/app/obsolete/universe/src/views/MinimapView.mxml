@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+	The minimap panel.
+-->
+<mx:Canvas 
+	xmlns:mx="http://www.adobe.com/2006/mxml" 
+	width="275" height="233"
+	mouseOver="universe.toggleRocketFrozen(true);"
+	mouseOut="universe.toggleRocketFrozen(false);">
+	
+	<mx:Style>
+		.background {
+			backgroundColor: black;
+			backgroundAlpha: 0.8;
+		}
+	</mx:Style>
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.core.Application;
+			import mx.controls.Image;
+			import mx.graphics.ImageSnapshot;
+			import mx.effects.easing.Bounce;
+			import mx.effects.easing.Back;
+
+			private var universe:InventionUniverse;
+
+			/** Width of the map area. */
+			public static const MAP_WIDTH:Number = 211;
+			/** Height of the map area. */
+			public static const MAP_HEIGHT:Number = 159;
+			
+			/** Is the minimap currently showing? */
+			public var isShowing:Boolean = false;
+
+			/** The map. */
+			private var map:Image;
+			
+			/** The size of the minimap to the size of the universe. */
+			private var miniMapSizeRatio:Number;
+			
+			// The coordinates of the mouse-following rectangle.
+			private var mouseRectangleX:int;
+			private var mouseRectangleY:int;
+			
+			/** Is the mouse inside the map area? */
+			private var isMouseInMap:Boolean = false;
+
+			public function init(universe:InventionUniverse):void {
+				this.universe = universe;
+				
+				// Set position.
+				reposition();
+				
+				miniMapSizeRatio = MAP_WIDTH / InventionUniverse.STAGE_X;
+				
+				// A semi-transparent background under the minimap. 
+				var background:Canvas = new Canvas();
+				background.width = MAP_WIDTH;
+				background.height = MAP_HEIGHT;
+				background.x = 28;
+				background.y = 65;
+				background.styleName = "background";
+				addChild(background);
+
+				// The minimap.
+				map = new Image();
+				map.width = MAP_WIDTH;
+				map.height = MAP_HEIGHT;
+				map.x = 28;
+				map.y = 65;
+				addChild(map);
+				
+				// The graphics overlay goes on top of the minimap.
+				var overlay:Image = new Image();
+				overlay.load("assets/swf/minimap.swf");
+				overlay.width = this.width;
+				overlay.height = this.height;
+				overlay.useHandCursor = overlay.buttonMode = overlay.mouseChildren = true; // Use hand cursor on mouse-over.
+				addChild(overlay);
+				
+				// EVENT LISTENERS.
+				// Toggle minimap on mouse down.
+				overlay.addEventListener(MouseEvent.MOUSE_DOWN, toggle);
+				
+				// Click/drag in minimap will move the displaying area.
+				map.addEventListener(MouseEvent.MOUSE_MOVE, handleMouseRectangle);
+				map.addEventListener(MouseEvent.MOUSE_DOWN, handleMouseRectangle);
+				map.addEventListener(MouseEvent.MOUSE_OUT, removeMouseRectangle);
+				
+				// Reposition minimap on window resize.
+				universe.addEventListener(Event.RESIZE, reposition);
+			}
+			
+			/** Shows or hides the minimap. */
+			public function toggle(e:MouseEvent = null):void {
+				if (isShowing) {
+					slide.easingFunction = Back.easeIn;
+					slide.play([this], true);
+					
+					isShowing = false;
+					
+					// Hide minimap.
+					map.visible = false;
+				} else {
+					slide.easingFunction = Back.easeOut;
+					slide.play([this]);
+					
+					isShowing = true;
+					
+					// Refresh and show minimap.
+					newMap();
+					map.visible = true;
+				}
+			}
+			
+			/** Repositions the minimap. */
+			private function reposition(e:Event = null):void {
+				this.x = isShowing? universe.width - 275 : universe.width - 35;
+				this.y = 30;
+			}
+			
+			/** Handles map.mouseOut. */
+			private function removeMouseRectangle(e:MouseEvent):void {
+				isMouseInMap = false;
+				
+				refresh();
+			}
+			
+			/** Handles map.mouseMove & map.mouseDown. */
+			private function handleMouseRectangle(e:MouseEvent):void {
+				var w:int = universe.width * miniMapSizeRatio;
+				var h:int = universe.height * miniMapSizeRatio;
+				
+				// Compute the left-top corner, and make it in a valid area.
+				mouseRectangleX = Math.max(e.localX - (w >> 1), 0);
+				mouseRectangleX = Math.min(mouseRectangleX, map.width - w);
+				mouseRectangleY = Math.max(e.localY - (h >> 1), 0);
+				mouseRectangleY = Math.min(mouseRectangleY, map.height - h);
+				
+				isMouseInMap = true;
+				
+				if (e.buttonDown) {
+					isMouseInMap = false;
+					
+					// Set new foreground/background/rocket position by calling Navigation.
+					var foreX:int = - (mouseRectangleX / miniMapSizeRatio);
+					var foreY:int = - (mouseRectangleY / miniMapSizeRatio);
+					
+					universe.scroll(
+						foreX - universe.foreground.x,
+						foreY - universe.foreground.y);
+				}
+
+				refresh();
+			}
+
+			/** Creates a new minimap image (for scene changes). init() must have been called first! */
+			public function newMap():void {
+				map.source = new Bitmap(ImageSnapshot.captureBitmapData(universe.foreground));
+				
+				refresh();
+			}
+	
+			/** Redraws all of map's graphics drawings, i.e. viewing rectangle, mouse rectangle and rocket position indicator. 
+			 * 	@see Navigation.performMove() & Rocket.moveRocket() for usage. */
+			public function refresh():void {
+				// Erase old drawings.
+				map.graphics.clear();
+				
+				// Redraw rocket position indicator.
+				var r:Point = universe.getGlobalPosition(universe.rocket);
+				
+				map.graphics.lineStyle(1, 0x00ff00, 1.0);
+				map.graphics.beginFill(0x00ff00, 1.0);
+				
+				map.graphics.drawCircle(r.x * miniMapSizeRatio, r.y * miniMapSizeRatio, 5);
+				
+				map.graphics.endFill();
+				
+				// Drawing rectangles.
+				var x:Number = -universe.foreground.x * miniMapSizeRatio;
+				var y:Number = -universe.foreground.y * miniMapSizeRatio;
+				var w:Number = universe.width * miniMapSizeRatio;
+				var h:Number = universe.height * miniMapSizeRatio;
+								
+				// Redraw mouse rectangle.
+				if (isMouseInMap) {
+					map.graphics.lineStyle(1, 0xff8000, 1);
+					map.graphics.drawRect(mouseRectangleX, mouseRectangleY, w, h);
+				}	
+				
+				// Redraw viewing rectangle.
+				map.graphics.lineStyle(1, 0xffffff, 1);
+				map.graphics.drawRect(x, y, w, h);
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Move id="slide" xFrom="{Application.application.width - 35}" xTo="{Application.application.width - 265}" />
+	
+</mx:Canvas>
