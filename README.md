@@ -7,6 +7,37 @@ Clone this repo or download the zip file to your local machine or a web server.
 2. PHP 7.0 <br />
 3. MySQL (4 or greater) <br />
 
+## Folder Structure
+    .
+    ├── ...
+    ├── cake                        # All backend code here (using cakePHP MVC framework)
+    │   ├── app                     # Where we write the project backend functions
+    │       ├── ... 
+    │       ├── Config              # Find all cakephp app config files here  
+    │           ├── ...             
+    │           ├── database.php    # Set up the database connection here
+    │       ├── Controller          # Edit and create controller class (restAPI) in this folder
+    │       ├── Model               # Edit and create model class in this folder
+    │       ├── Plugin 
+    │           ├── Upload          # File upload plugin for cakePHP, a third party lib, no need to edit.
+    │       ├── webroot
+    │           ├── ...         
+    │           ├── files           # Where we put all the users' uploaded files
+    │   ├── ...          
+    │   └── .htaccess               # URL rewrite file for linux
+    │   └── Web.config              # URL rewrite file for winodws server
+    |
+    ├── iu2016                      # All frontend code here (no frontend framework now)
+    │   ├── css                     # Style sheets folder
+    │   ├── img                     # Default graphics folder
+    │   └── js                      # JS file folder
+    │       └── app.js              # Main javascript file of the application
+    │       └── libs                # Third Party libraraies
+    │   └── test                    # RestAPI testing 
+    │   └── index.html              # index html of the application
+    ├── info.php                    # show PHP's configuration
+    ├── READMD.md                   
+
 ## Building a Local Dev Environment
 ## Windows IIS
 ### Install IIS manager
