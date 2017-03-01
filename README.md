@@ -137,3 +137,10 @@ At this point you could open your local server address in a browser to test the 
 
 ## Mac OS 
 No test here, to be continued...
+
+## Wiki Pages
+To understand the codes, please read wiki pages as below:
+https://github.com/stevesuyao/InventionUniverse2016/wiki/Backend-Wiki
+https://github.com/stevesuyao/InventionUniverse2016/wiki/Frontend-Wiki
+
+(There will be more references on the wiki pages in the future.)
