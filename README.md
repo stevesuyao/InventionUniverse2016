@@ -8,12 +8,12 @@ Clone this repo or download the zip file to your local machine or a web server.
 3. MySQL (4 or greater) <br />
 
 ## Building a Local Dev Environment
-### Windows
+## Windows
 #### Install IIS manager
 step by step tutorial: https://msdn.microsoft.com/en-us/library/ms181052(v=vs.80).aspx
 
 #### Install PHP
-**I took the lazy way out. I used the Web Platform Installer to make things easier:** <br/>
+I took the lazy way out. I used the Web Platform Installer to make things easier: <br/>
 
   1. Download Web Platform Installer: https://www.microsoft.com/web/downloads/platform.aspx <br/>
   2. Open Web Platform Installer. <br/>
@@ -21,7 +21,8 @@ step by step tutorial: https://msdn.microsoft.com/en-us/library/ms181052(v=vs.80
   4. Click Add for "PHP7.0.15(x86)", "Windwos Cache Extension 2.0(x86) for PHP 7.0" and "PHP Manager for IIS". <br/>
   5. Click Install.<br/>
 
-**This will download a stable version of PHP 7.0 and configure IIS to be able to handle PHP files.** <br/>
+>This will download a stable version of PHP 7.0 and configure IIS to be able to handle PHP files. <br/>
+
 #### Install MySQL
   1. Downlaod MySQL Installer for Windows: https://dev.mysql.com/downloads/installer/ <br/>
   2. Open MySQL Installer. <br/>
@@ -29,7 +30,7 @@ step by step tutorial: https://msdn.microsoft.com/en-us/library/ms181052(v=vs.80
   4. Step by step installation info: https://dev.mysql.com/doc/refman/5.7/en/mysql-installer-gui.html <br/>
 
 #### Import IU Data to local database
-**I used MySQL Workbench to make things easier:** <br/>
+I used MySQL Workbench to make things easier: <br/>
 
   1. Open MySQL Workbench. <br/>
   2. Create a new MySQL Connection to the local database: https://dev.mysql.com/doc/workbench/en/wb-mysql-connections-new.html. <br/>
@@ -47,7 +48,7 @@ step by step tutorial: https://msdn.microsoft.com/en-us/library/ms181052(v=vs.80
     - Click Start Import button at the right bottom corner of window. <br/>
     
 #### Create IIS Website
-**Open the Internet Information Services (IIS) Manager:** <br/>
+Open the Internet Information Services (IIS) Manager: <br/>
 
   1. Expand the folder with the name of the computer. <br/>
 
