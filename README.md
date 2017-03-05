@@ -145,4 +145,6 @@ https://github.com/stevesuyao/InventionUniverse2016/wiki/Frontend-Wiki
 
 (There will be more references on the wiki pages in the future.)
 
-## Team members
+## Team Members
+
+## Team Workflow
