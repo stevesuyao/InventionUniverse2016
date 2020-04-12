@@ -33,13 +33,19 @@ $(function() {
   $( '#btn' ).click(function(){
     var url = $( '#url' ).val()
 
-    $.ajax({
+    // $.ajax({
+    //   url: url,
+    //   success: function(data) {
+    //     $( '#test' ).html(data);
+    //     console.warn('get data', data)
+    //   }
+    // });
+    $.ajax(
       url: url,
-      success: function(data) {
-        $( '#test' ).html(data);
-        console.warn('get data', data)
-      }
-    });
+    )
+    .done(function(data){
+      console.warn('get data', data);
+    })
   });
 });
 </script>
