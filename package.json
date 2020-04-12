@@ -1,0 +1,22 @@
+{
+  "name": "inventionuniverse2016",
+  "version": "1.0.0",
+  "description": "Invetion Universe 2016 fornt-end project",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stevesuyao/InventionUniverse2016.git"
+  },
+  "author": "biy",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/stevesuyao/InventionUniverse2016/issues"
+  },
+  "homepage": "https://github.com/stevesuyao/InventionUniverse2016#readme"
+}
