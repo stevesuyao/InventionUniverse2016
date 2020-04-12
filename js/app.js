@@ -1,8 +1,9 @@
 
 var app,
     appConfig = {
-    
-        apiUrl: 'http://localhost:8080/cake',  //server ip address
+        apiUrl: 'https://byr7m3hqxg.execute-api.us-east-1.amazonaws.com/qa',  //server ip address
+        quadrantService: 'https://byr7m3hqxg.execute-api.us-east-1.amazonaws.com/qa',
+        galaxyService: 'https://2fol67t42e.execute-api.us-east-1.amazonaws.com/qa',
         pagination: 1,
         initialBatchCount: 200,
         dataCount: 500,
@@ -11,7 +12,7 @@ var app,
 
         maxDataTotal: 1500,
         lowestFrameRate: 35,
-        startLoaderTimer: null, 
+        startLoaderTimer: null,
         avgFrameRate: 100,      // set high to start
 
         nebulae: [
@@ -23,17 +24,17 @@ var app,
             { x: 3400, y: 2929, radius: 500, name: 'No.5',  color: 'blue' },
             { x: 4729, y: 4491, radius: 500, name: 'No.6',  color: 'purple' },
             { x: 7326, y: 2190, radius: 500, name: 'No.7',  color: 'green' },
-            
+
         ],
 
-        
+
         //rest API
         REST:{
                 LOGIN: '/users/login.json',
                 SIGNUP: '/users/add.json',
                 LOGOUT: '/users/logout.json',
-                GALAXIES: '/galaxies.json',
-                QUADRANTS:'/quadrants.json',
+                GALAXIES: '/galaxy',
+                QUADRANTS:'/quadrant',
                 SYSTEMS: '/systems/systemslist/',
                 ALLSYSTEMS: '/systems.json',
                 PLANETS:'/planets/planetslist/',
@@ -131,11 +132,11 @@ var app,
 
     },
 
-    bounds = { 
-        x1: 0, 
-        y1: 0, 
-        x2: 0, 
-        y2: 0 
+    bounds = {
+        x1: 0,
+        y1: 0,
+        x2: 0,
+        y2: 0
     },
     useParallax = true,
     showHover = false,
@@ -144,7 +145,7 @@ var app,
     starId = null,
 
     // Test Dada
- 
+
     testPlanetsData1 = [{"id":1, 'user_id':1, "system_id":1, "image_url":"", "name":"", "planet_edge": 1, image_url:'../img/stars/planet1.png' },
                       {"id":2,  'user_id':2,  "system_id":1, "image_url":"", "name":"", "planet_edge": 2, image_url:'../img/stars/planet2.png' },
                       {"id":3,   'user_id':3, "system_id":1, "image_url":"", "name":"", "planet_edge": 5, image_url:'../img/stars/planet3.png' },
@@ -178,46 +179,46 @@ var app,
                         {"id":18,"name":"No.18","x":8000,"y":4500,"age":0, "Planet":[] },
                      ];
 
-    testSystemData3 = [ 
+    testSystemData3 = [
                         {"id":19,"name":"No.18","x":3000,"y":3000,"age":0, "Planet":[] },
                      ];
 
     //testSystemData = [  {"id":1,"name":"1","x":3622,"y":1163,"age":0}];
-    testGalaxyData = [{"id":1, "quadrant_id":1, "name":"Galaxy01","description": "here is the galxy description", "x":-50,"y":-50,"age":0,"systems":testSystemData,},
-                      {"id":2, "quadrant_id":1, "name":"Galaxy02","description": "here is the galxy description", "x":260,"y":50,"age":0,"systems":testSystemData2},
-                      //{"id":3, "quadrant_id":1, "name":"Galaxy03","description":hereis is the galxy description", "x":100,"y":150,"age":0,"systems":testSystemData},
-                      {"id":4, "quadrant_id":1, "name":"Galaxy04","description": "here is the galxy description", "x":150,"y":-110,"age":0,"systems":testSystemData},
-                     // {"id":5, "quadrant_id":1, "name":"Galaxy05","description":hereis is the galxy description", "x":120,"y":-180,"age":0,"systems":testSystemData},
-                      {"id":6, "quadrant_id":1, "name":"Galaxy06","description": "here is the galxy description", "x":-150,"y":-220,"age":0,"systems":testSystemData2},
-                      {"id":7, "quadrant_id":1, "name":"Galaxy07","description": "here is the galxy description", "x":-220,"y":-80,"age":0,"systems":testSystemData},
-                     // {"id":8, "quadrant_id":1, "name":"Galaxy08","description":hereis is the galxy description", "x":-140,"y":20,"age":0,"systems":testSystemData},
-                      //{"id":9, "quadrant_id":1, "name":"Galaxy09","description":hereis is the galxy description", "x":-100,"y":120,"age":0,"systems":testSystemData},
-                      {"id":10,"quadrant_id":2, "name":"Galaxy10","description": "here is the galxy description","x":70,"y":200,"age":0,"systems":testSystemData2},
-                      {"id":11,"quadrant_id":2, "name":"Galaxy11","description": "here is the galxy description","x":0,"y":0,"age":0,"systems":testSystemData3},
-                      {"id":12,"quadrant_id":2, "name":"Galaxy12","description": "here is the galxy description","x":40,"y":-70,"age":0,"systems":testSystemData2},
-                      {"id":13,"quadrant_id":2, "name":"Galaxy13","description": "here is the galxy description","x":-70,"y":100,"age":0,"systems":testSystemData},
-                      //{"id":14,"quadrant_id":2, "name":"Galaxy14","description":heres is the galxy description","x":-50,"y":-50,"age":0,"systems":testSystemData},
-                     // {"id":15,"quadrant_id":2, "name":"Galaxy15","description":heres is the galxy description","x":100,"y":120,"age":0,"systems":testSystemData},
-                      //{"id":16,"quadrant_id":2, "name":"Galaxy16","description":heres is the galxy description","x":-220,"y":120,"age":0,"systems":testSystemData},
-                      //{"id":17,"quadrant_id":2, "name":"Galaxy17","description":heres is the galxy description","x":-120,"y":-200,"age":0,"systems":testSystemData},
-                      {"id":18,"quadrant_id":2, "name":"Galaxy18","description": "here is the galxy description","x":-200,"y":-80,"age":0,"systems":testSystemData2},
-                      //{"id":19,"quadrant_id":2, "name":"Galaxy19","description "hereis is the galxy description","x":-140,"y":20,"age":0,"systems":testSystemData},
-                     // {"id":20,"quadrant_id":2, "name":"Galaxy20","description "hereis is the galxy description","x":120,"y":-60,"age":0,"systems":testSystemData},
-                      {"id":21,"quadrant_id":3, "name":"Galaxy21","description": "here is the galxy description","x":90,"y":-130,"age":0,"systems":testSystemData},
-                      {"id":22,"quadrant_id":3, "name":"Galaxy22","description": "here is the galxy description","x":70,"y":200,"age":0,"systems":testSystemData2},
-                      {"id":23,"quadrant_id":4, "name":"Galaxy23","description": "here is the galxy description","x":0,"y":0,"age":0,"systems":testSystemData},
-                      {"id":24,"quadrant_id":4, "name":"Galaxy24","description": "here is the galxy description","x":70,"y":100,"age":0,"systems":testSystemData2},
-                      {"id":25,"quadrant_id":5, "name":"Galaxy25","description": "here is the galxy description","x":100,"y":0,"age":0,"systems":testSystemData},
-                      {"id":26,"quadrant_id":5, "name":"Galaxy26","description": "here is the galxy description","x":-100,"y":-200,"age":0,"systems":testSystemData2},
-                      {"id":27,"quadrant_id":6, "name":"Galaxy27","description": "here is the galxy description","x":0,"y":0,"age":0,"systems":testSystemData},
-                      {"id":28,"quadrant_id":6, "name":"Galaxy28","description": "here is the galxy description","x":70,"y":100,"age":0,"systems":testSystemData2},
-                      {"id":29,"quadrant_id":7, "name":"Galaxy29","description": "here is the galxy description","x":0,"y":0,"age":0,"systems":testSystemData},
-                      {"id":30,"quadrant_id":7, "name":"Galaxy30","description": "here is the galxy description","x":70,"y":100,"age":0,"systems":testSystemData2},
-                      {"id":31,"quadrant_id":8, "name":"Galaxy31","description": "here is the galxy description","x":0,"y":0,"age":0,"systems":testSystemData},
-                      {"id":32,"quadrant_id":8, "name":"Galaxy32","description": "here is the galxy description","x":70,"y":100,"age":0,"systems":testSystemData2},
+    testGalaxyData = [{"id":1, "quadrantId":1, "name":"Galaxy01","description": "here is the galxy description", "x":-50,"y":-50,"age":0,"systems":testSystemData,},
+                      {"id":2, "quadrantId":1, "name":"Galaxy02","description": "here is the galxy description", "x":260,"y":50,"age":0,"systems":testSystemData2},
+                      //{"id":3, "quadrantId":1, "name":"Galaxy03","description":hereis is the galxy description", "x":100,"y":150,"age":0,"systems":testSystemData},
+                      {"id":4, "quadrantId":1, "name":"Galaxy04","description": "here is the galxy description", "x":150,"y":-110,"age":0,"systems":testSystemData},
+                     // {"id":5, "quadrantId":1, "name":"Galaxy05","description":hereis is the galxy description", "x":120,"y":-180,"age":0,"systems":testSystemData},
+                      {"id":6, "quadrantId":1, "name":"Galaxy06","description": "here is the galxy description", "x":-150,"y":-220,"age":0,"systems":testSystemData2},
+                      {"id":7, "quadrantId":1, "name":"Galaxy07","description": "here is the galxy description", "x":-220,"y":-80,"age":0,"systems":testSystemData},
+                     // {"id":8, "quadrantId":1, "name":"Galaxy08","description":hereis is the galxy description", "x":-140,"y":20,"age":0,"systems":testSystemData},
+                      //{"id":9, "quadrantId":1, "name":"Galaxy09","description":hereis is the galxy description", "x":-100,"y":120,"age":0,"systems":testSystemData},
+                      {"id":10,"quadrantId":2, "name":"Galaxy10","description": "here is the galxy description","x":70,"y":200,"age":0,"systems":testSystemData2},
+                      {"id":11,"quadrantId":2, "name":"Galaxy11","description": "here is the galxy description","x":0,"y":0,"age":0,"systems":testSystemData3},
+                      {"id":12,"quadrantId":2, "name":"Galaxy12","description": "here is the galxy description","x":40,"y":-70,"age":0,"systems":testSystemData2},
+                      {"id":13,"quadrantId":2, "name":"Galaxy13","description": "here is the galxy description","x":-70,"y":100,"age":0,"systems":testSystemData},
+                      //{"id":14,"quadrantId":2, "name":"Galaxy14","description":heres is the galxy description","x":-50,"y":-50,"age":0,"systems":testSystemData},
+                     // {"id":15,"quadrantId":2, "name":"Galaxy15","description":heres is the galxy description","x":100,"y":120,"age":0,"systems":testSystemData},
+                      //{"id":16,"quadrantId":2, "name":"Galaxy16","description":heres is the galxy description","x":-220,"y":120,"age":0,"systems":testSystemData},
+                      //{"id":17,"quadrantId":2, "name":"Galaxy17","description":heres is the galxy description","x":-120,"y":-200,"age":0,"systems":testSystemData},
+                      {"id":18,"quadrantId":2, "name":"Galaxy18","description": "here is the galxy description","x":-200,"y":-80,"age":0,"systems":testSystemData2},
+                      //{"id":19,"quadrantId":2, "name":"Galaxy19","description "hereis is the galxy description","x":-140,"y":20,"age":0,"systems":testSystemData},
+                     // {"id":20,"quadrantId":2, "name":"Galaxy20","description "hereis is the galxy description","x":120,"y":-60,"age":0,"systems":testSystemData},
+                      {"id":21,"quadrantId":3, "name":"Galaxy21","description": "here is the galxy description","x":90,"y":-130,"age":0,"systems":testSystemData},
+                      {"id":22,"quadrantId":3, "name":"Galaxy22","description": "here is the galxy description","x":70,"y":200,"age":0,"systems":testSystemData2},
+                      {"id":23,"quadrantId":4, "name":"Galaxy23","description": "here is the galxy description","x":0,"y":0,"age":0,"systems":testSystemData},
+                      {"id":24,"quadrantId":4, "name":"Galaxy24","description": "here is the galxy description","x":70,"y":100,"age":0,"systems":testSystemData2},
+                      {"id":25,"quadrantId":5, "name":"Galaxy25","description": "here is the galxy description","x":100,"y":0,"age":0,"systems":testSystemData},
+                      {"id":26,"quadrantId":5, "name":"Galaxy26","description": "here is the galxy description","x":-100,"y":-200,"age":0,"systems":testSystemData2},
+                      {"id":27,"quadrantId":6, "name":"Galaxy27","description": "here is the galxy description","x":0,"y":0,"age":0,"systems":testSystemData},
+                      {"id":28,"quadrantId":6, "name":"Galaxy28","description": "here is the galxy description","x":70,"y":100,"age":0,"systems":testSystemData2},
+                      {"id":29,"quadrantId":7, "name":"Galaxy29","description": "here is the galxy description","x":0,"y":0,"age":0,"systems":testSystemData},
+                      {"id":30,"quadrantId":7, "name":"Galaxy30","description": "here is the galxy description","x":70,"y":100,"age":0,"systems":testSystemData2},
+                      {"id":31,"quadrantId":8, "name":"Galaxy31","description": "here is the galxy description","x":0,"y":0,"age":0,"systems":testSystemData},
+                      {"id":32,"quadrantId":8, "name":"Galaxy32","description": "here is the galxy description","x":70,"y":100,"age":0,"systems":testSystemData2},
                       ];
 
-testRocketsData = [ 
+testRocketsData = [
                     {'id': 1, 'planet_id': 1, 'img_url': '../img/rockets/default01.png' },
                     {'id': 2, 'planet_id': 1, 'img_url': '../img/rockets/default02.png' },
                     {'id': 3, 'planet_id': 1, 'img_url': '../img/rockets/default03.png' },
@@ -308,23 +309,23 @@ function App(config) {
         var starData = starId && self.starMap.findStarData(starId);
 
         if (starData) {
-            
+
             showSpecificStar = true;
 
             self.tileMap.center(starData.x, starData.y);
 
             setTimeout(function() {
-                
+
                 self.tileMap.center(starData.posX, starData.posY);
                 self.screenStarSharing.setStarData(starData);
 
                 setTimeout(function() {
-                    
+
                     self.tileMap.center(starData.posX, starData.posY);
                     self.go('star-sharing');
 
 
-                
+
                 }, 5500);
 
             }, 100);
@@ -339,7 +340,7 @@ App.prototype.initSharing = function(){
     this.$embed = this.$sharing.find('.embed');
 
     var $body = this.$elem;
-    
+
     this.$sharing.hover(function() {
         $body.toggleClass('custom-cursor');
     });
@@ -408,9 +409,9 @@ App.prototype.initMaps = function(){
     this.nebulae = new Nebulae(this);// create instance of Nebulae
 
     this.tileMap = new TileMap(this);  // create instance of TileMap(backgroundimage)
-    this.systemMap = new SystemMap(this); 
-    //this.starMap = new StarMap(this); 
-    this.galaxyMap = new GalaxyMap(this);  
+    this.systemMap = new SystemMap(this);
+    //this.starMap = new StarMap(this);
+    this.galaxyMap = new GalaxyMap(this);
     this.miniMap = new MiniMap(this);
 
     //this.nebulae.initMiniMapMarkers();
@@ -462,11 +463,11 @@ App.prototype.triggerMapAnimation = function(){
     var self = this;
      //console.log('triggerMapAnimation')
     this.animationFrameId = window.requestAnimationFrame(function(){
-        
+
         var now = new Date().getTime();
         self.timeSinceLastFrame = now - self.lastFrameTime;
 
-        // Maintain array of frame times and output an average 
+        // Maintain array of frame times and output an average
         self.arrTimeSinceLastFrame.push(self.timeSinceLastFrame);
         if (self.arrTimeSinceLastFrame.length > 30) {
             self.arrTimeSinceLastFrame.shift();
@@ -481,14 +482,14 @@ App.prototype.triggerMapAnimation = function(){
         if (Math.abs(appConfig.avgFrameRate - avg) > 5) {
             appConfig.avgFrameRate = avg;
         }
-        
+
         self.lastFrameTime = now;
-        
+
         self.triggerMapAnimation();
     });
 
 
-   
+
     this.control.update();
     this.tileMap.update();
     this.miniMap.update();
@@ -611,7 +612,7 @@ App.prototype.getUrlStarId = function(){
 };
 
 App.prototype.setUrlStarId = function(id){
-    
+
     return;
 
     if (id == 'reset') {
@@ -681,17 +682,17 @@ App.prototype.make_base_auth = function(user, password) {
 };
 
 App.prototype.login =  function(a,b,callback){  // a, b are dom id text
-     
+
      var self = this;
      var username = $("#"+a).val();
-     var password = $("#"+b).val(); 
+     var password = $("#"+b).val();
      var h = self.make_base_auth(username, password);
      $.ajax( {
         url: self.config.apiUrl +　self.config.REST.LOGIN,
         type: 'POST',
-        
-       beforeSend: function (xhr){ 
-           xhr.setRequestHeader('Authorization', h); 
+
+       beforeSend: function (xhr){
+           xhr.setRequestHeader('Authorization', h);
         },
 
         success: function( data) {
@@ -699,7 +700,7 @@ App.prototype.login =  function(a,b,callback){  // a, b are dom id text
           if(data.message.user) {
             self.user = data.message.user;
             self.miniMap.decoMarker(self.user.Planet);
-             
+
           }
           self.message = data.message.text;
           if (typeof callback === "function") {
@@ -709,7 +710,7 @@ App.prototype.login =  function(a,b,callback){  // a, b are dom id text
         },
         error: function(status){
           //To-do: add server error warning!
-          
+
           console.log('Server Error');
         }
     });
@@ -719,14 +720,14 @@ App.prototype.refreshLogin = function(a,b,callback){
 
      var self = this;
      var username = $("#"+a).val();
-     var password = $("#"+b).val(); 
+     var password = $("#"+b).val();
      // var h = self.make_base_auth(username, password);
      $.ajax( {
         url: self.config.apiUrl +　self.config.REST.LOGIN,
         type: 'POST',
-        
-       // beforeSend: function (xhr){ 
-       //     xhr.setRequestHeader('Authorization', h); 
+
+       // beforeSend: function (xhr){
+       //     xhr.setRequestHeader('Authorization', h);
        //  },
 
         success: function( data) {
@@ -738,12 +739,12 @@ App.prototype.refreshLogin = function(a,b,callback){
             if (typeof callback === "function") {
                 callback();
             }
-          } 
+          }
 
         },
         error: function(status){
           //To-do: add server error warning!
-          
+
           console.log('Server Error');
         }
     });
@@ -754,7 +755,7 @@ App.prototype.logout = function(callback){
     var self = this;
 
     $.ajax( {
-          url: self.config.apiUrl +　self.config.REST.LOGOUT,   
+          url: self.config.apiUrl +　self.config.REST.LOGOUT,
           success: function( data) {
             self.user = null;
             self.message = data.message.text;
@@ -780,12 +781,12 @@ App.prototype.signup = function(a,b,callback){
        _data.User.username = username;
        _data.User.password = password;
        _data.User.role = 'author'; // to-do: add admin page
-  
+
       $.ajax( {
           url: self.config.apiUrl +　self.config.REST.SIGNUP,
           type: 'POST',
           data:_data,
-          
+
           success: function( data) {
               console.log(data);
               self.message = data.message.text;
@@ -795,7 +796,7 @@ App.prototype.signup = function(a,b,callback){
                   self.hasSignup = true;
                 }
                 else callback(false);
-              } 
+              }
           },
           error: function(status){
 
@@ -841,7 +842,7 @@ App.prototype.createPlanet = function($form,system_id, planet_edge,callback){
 
                 }
               }
-             
+
     },
     error: function(status){
           console.log(status);
@@ -885,7 +886,7 @@ App.prototype.loginMessage = function(dom1,dom2){
         if(this.screenMessage){
           this.screenMessage.changeMessage(this.message);
           this.screenMessage.enterScreen();
-        } 
+        }
         else{ console.log('no instance of ScreenMessage') }
       };
        if(dom1) dom1.text(this.message);
@@ -898,9 +899,9 @@ App.prototype.signupMessage = function(dom,b){
         if(this.screenMessage){
           this.screenMessage.changeMessage(this.message);
           this.screenMessage.enterScreen();
-        } 
+        }
         else{ console.log('no instance of ScreenMessage') }
-      } 
+      }
       else
       {
         if(dom) dom.text(this.message);
@@ -955,11 +956,11 @@ Menu.prototype.init = function(){
 
     $('.btn-toggle').on('click', function(e){
             e.preventDefault();
-            
+
             var t = $(e.target).parent().parent();
             var o = t.index('.menu');
-           
-            // make sure show only one menu when click 
+
+            // make sure show only one menu when click
             self.$menus.each(function(){
                                 if($(this).index() !== o) $(this).addClass('hide');
                             });
@@ -968,11 +969,11 @@ Menu.prototype.init = function(){
 
            if(self.$menus.not('.hide').length === 0 && o !== 2){//self.app.universe === 'planet'){ // make sure minimap will show on 'planet' page
             self.$right.removeClass('hide');
-            } 
+            }
 
             if(self.app.universe === 'planet'){
                 self.quitPlanet();
-             
+
                //$(document.body).trigger('quitePlanet');
 
             }
@@ -980,7 +981,7 @@ Menu.prototype.init = function(){
                 $(document.body).removeClass('signup');
                 if(t.hasClass('menu-signup')) self.$left.removeClass('hide');
             }
-           
+
     });
 
     $('.menu-bar a').on('click',function(e){
@@ -1019,7 +1020,7 @@ Menu.prototype.init = function(){
                                                   app.loginMessage($('#error-login'),$('#password'));
                                                   app.menu.afterLogin(app.user);
                                                 });
-        
+
     });
 
     $('.branding .btn-login').on('click',function(e){
@@ -1028,7 +1029,7 @@ Menu.prototype.init = function(){
           app.message = "You have already logged in!"
           app.screenMessage.enterScreen();
           return;
-        } 
+        }
         if( app.menu.$left.hasClass('hide') ){
           app.menu.$left.removeClass('hide');
           app.menu.$right.addClass('hide');
@@ -1062,7 +1063,7 @@ Menu.prototype.init = function(){
         if(app.user === null) app.menu.signup();
         else $('#error-login').text('please logout, then signup. ');
     });
-    
+
     // signup form event
     this.$signupForm.addEventListener("submit", function(ev){
       ev.preventDefault();
@@ -1350,8 +1351,8 @@ function ScreenFront(app) {
         }, 3000);
         self.$elem.remove();
         //self.leaveScreen();
-            
-        
+
+
         self.app.screenTravelspace.startEffect();
         self.app.initHandlers();
     };
@@ -1376,7 +1377,7 @@ ScreenFront.prototype.touchstart = function(e){
 };
 
 ScreenFront.prototype.getHotRocket = function(){
-      var url = appConfig.apiUrl + appConfig.REST.GETHOTROCKET; 
+      var url = appConfig.apiUrl + appConfig.REST.GETHOTROCKET;
       $.ajax( {
           url: url,
           success: function( data) {
@@ -1398,8 +1399,8 @@ ScreenFront.prototype.enterScreen = function(){
         $('#parallax').parallax();
         $('#footer-ground').css({'z-index': 0});
         self.showMessage(self.message);
-        
-    }, 2000) 
+
+    }, 2000)
 };
 
 ScreenFront.prototype.showMessage = function(){
@@ -1418,7 +1419,7 @@ ScreenFront.prototype.showMessage = function(){
                 }, 500)
             }
         });
- 
+
 };
 
 ScreenFront.prototype.leaveScreen = function(){
@@ -1441,16 +1442,16 @@ function ScreenPlanet(app) {
 
 /*    this.$elem.click(function(e){
          e.preventDefault();
-       
-        self.app.systemMap.$galaxy.removeClass('clickOnPlanet'); 
+
+        self.app.systemMap.$galaxy.removeClass('clickOnPlanet');
         self.app.universe = 'galaxy';
         self.app.systemMap.steadySystem(self.app.systemMap.clickedSystem);
         self.app.systemMap.quitPlanet();
         self.app.go('navigating');
         //self.app.contorl.clickPlanet(self.savedCenter.x, self.savedCenter.y);
-       
+
     });*/
-    
+
     /*this.$content.hover(function() {
         $body.toggleClass('custom-cursor');
     });*/
@@ -1485,15 +1486,15 @@ ScreenTravelspace.prototype.initElements = function(){
         $layer,
         stars,
         $star;
-    
+
     while (layers) {
       $layer = $('<div/>').addClass('layer layer-'+ layers);
       stars = 50;
-      
+
       // Stick a bunch of svg stars on each layer
       while (stars) {
         $star = $('<span/>').addClass('star');
-        
+
         // Randomise the position, size, and opacity (colour defined in CSS)
         $star.css({
           left: self.randomInt(1, 100) +'%',
@@ -1501,14 +1502,14 @@ ScreenTravelspace.prototype.initElements = function(){
           transform: 'scale('+ self.randomNum(0, 1) +')',
           opacity: self.randomNum(0.6, 1)
         });
-        
+
         $layer.append($star);
         stars--;
       }
       self.$layerWrap.prepend($layer);
       layers--;
     }
-    
+
     this.$elem.append(self.$layerWrap);
     this.$layerWrap.hide();
 };
@@ -1535,7 +1536,7 @@ ScreenTravelspace.prototype.endEffect = function(){
 ScreenTravelspace.prototype.randomInt = function(min, max) {
     return Math.floor((Math.random() * max) + min);
 };
-  
+
   //Returns random number
 
 ScreenTravelspace.prototype.randomNum = function(min, max) {
@@ -1651,36 +1652,36 @@ ScreenProjectForm.prototype = {
             console.log(match[2]);
            fd.set('data[Video][youtube_url]', match[2]);
             for (var pair of fd.entries()) {
-              console.log(pair); 
+              console.log(pair);
             }
-      } 
+      }
       else {
         console.log('not a valid youtube link');
       }
 
       barStart($('#video-submit'));
-            
+
         $.ajax({
-              //url: "http://localhost:8080/cake/videos/add.json", 
+              //url: "http://localhost:8080/cake/videos/add.json",
               url: appConfig.apiUrl + appConfig.REST.ADDVIDEO,
               type:"POST",
               data:fd,
               processData: false,  // tell jQuery not to process the data
               contentType: false,   // tell jQuery not to set contentType
               success:function(data){
-                console.log(data); 
+                console.log(data);
                 if(data.message.type === 'success'){
                     barSuccess($('#video-submit'));
                     app.videoSlider.redraw(planet_id);
                     self.leaveScreen();
                     self.emptyForm();
-                } 
+                }
                 else {
                   var em = 'error: ';
-                  //if(data.message.text.photo)  
+                  //if(data.message.text.photo)
                    // em += data.message.text;
                    em += "please make sure your file size is not larger 8 MB ";
-                  
+
                   barError($('#video-submit'), em);
                 }
 
@@ -1706,7 +1707,7 @@ ScreenProjectForm.prototype = {
       url: url,
       type:"POST",
       success:function(data){
-        console.log(data); 
+        console.log(data);
         self.leaveScreen();
         app.videoSlider.redraw(planet_id);
       },
@@ -1756,12 +1757,12 @@ ScreenProjectForm.prototype = {
                     app.videoSlider.redraw(planet_id, pos);
                     self.leaveScreen();
                     self.emptyForm();
-                } 
+                }
                 else {
                   var em = 'error: ';
                     //em += data.message.text;
                     em += "please make sure your file size is not larger 8 MB ";
-                  
+
                   barError($('#video-edit-submit'), em);
                 }
       },
@@ -1786,7 +1787,7 @@ ScreenProjectForm.prototype = {
       url: url,
       type:"POST",
       success:function(data){
-        console.log(data); 
+        console.log(data);
         var photoN = (data.message.video.Video.photo === null || data.message.video.Video.photo === "") ? 'No Photo yet' : data.message.video.Video.photo;
         var pdfN = (data.message.video.Video.pdf === null || data.message.video.Video.pdf === "") ? 'No PDF file yet' : data.message.video.Video.pdf;
         var pptN = (data.message.video.Video.ppt === null || data.message.video.Video.ppt === "") ? 'No PPT file yet' : data.message.video.Video.ppt;
@@ -1823,10 +1824,10 @@ ScreenProjectForm.prototype = {
     })
 
     this.$elem.click(function(e){
-      
+
       if($(e.target).hasClass('screen')) self.leaveScreen();
     });
-    
+
     this.$elem.find('input').on('change',function(e){
           e.preventDefault();
           barRecover($('#video-submit'));
@@ -1839,7 +1840,7 @@ ScreenProjectForm.prototype = {
           }
 
           if($(this).attr('id') === 'videolink2') $('#videoError').text("");
-      
+
     });
 
     this.$elem.find('textarea').on('change',function(e){
@@ -1950,7 +1951,7 @@ ScreenNavigating.prototype.handleStarSharing = function($star){
    // var starData = this.app.starMap.findStarData(starId);
 
     this.leaveScreen();
-    
+
     this.app.tileMap.animateCenter(starData.x, starData.y, function(){
         self.app.setUrlStarId(starId);
         self.app.screenStarSharing.setStarData(starData);
@@ -2068,9 +2069,9 @@ function ScreenStarCreation(app) {
         //         self.app.go('navigating');
         //     }
         // }
-       
+
         if (self.$content.get(0) != $(e.target).closest('.content').get(0) && !self.$elem.hasClass('state-loading') ) {
-          /*self.app.systemMap.$galaxy.removeClass('clickOnPlanet'); 
+          /*self.app.systemMap.$galaxy.removeClass('clickOnPlanet');
           self.app.universe = 'galaxy';
           self.app.systemMap.steadySystem(self.app.systemMap.clickedSystem);
           self.app.go('navigating');*/
@@ -2080,7 +2081,7 @@ function ScreenStarCreation(app) {
 
 
     });
-    
+
     this.$content.hover(function() {
         $body.toggleClass('custom-cursor');
     });
@@ -2240,11 +2241,11 @@ function ScreenStarSharing(app) {
         selectElementText(el);
     });
 
-    this.$elem.click(function(e){        
+    this.$elem.click(function(e){
         // If the clicked element is outside the main
         // content go back to the navigation screen.
         if (self.$content.get(0) != $(e.target).closest('.content').get(0)) {
-            
+
             self.$elem.addClass('screen-closing');
 
             stretchBounds = false;
@@ -2267,7 +2268,7 @@ function ScreenStarSharing(app) {
                 }
 
             } else {
-                
+
                 setTimeout(function(){
                     self.app.go('navigating');
                     self.$elem.removeClass('screen-closing');
@@ -2345,76 +2346,20 @@ function Nebulae(app) {
 };
 
 Nebulae.prototype.requestData = function(){
-        /*$.ajax(this.app.config.apiUrl, { data: data, type: 'POST' })
-        .done(function(data){
-
-            self.app.log('Submitted star data:');
-            self.app.log(data);
-
-            var starData = self.app.starMap.createStarData(data.id, data.x, data.y, data.name, 1, data.url);
-            if (starData) {
-                starData.elem = self.app.starMap.createStarElem(starData);
-            }
-
-            self.app.log('Created star elem with data:');
-            self.app.log(starData);
-
-            $content.addClass('fade-out');
-
-            self.playCreationAnimation(function(){
-                self.app.screenStarSharing.setStarData(starData);
-                $content.removeClass('fade-out');
-                self.app.go('star-sharing');
-            });
-
-            self.loadingComplete();
-
-            setTimeout(function(){
-                self.isSubmitting = false;
-            }, 5000);
+  var self = this;
+  var url = appConfig.quadrantService + appConfig.REST.QUADRANTS;
+  console.log('requst quadrant url', url);
+  $.ajax(url)
+      .done(function(data){
+        _.forEach(data, (i) => {
+          self.nebulae.push(i)
         })
-        .fail(function(data){
-
-            self.$content.addClass('fail');
-            setTimeout(function(){
-                self.$content.removeClass('fail');
-            }, 1000);
-
-            self.app.log('An error occurred while submitting the star data:');
-            self.app.log(data.statusText);
-            self.loadingComplete();
-
-            setTimeout(function(){
-                self.isSubmitting = false;
-            }, 5000);
-        });*/
-        var self = this;
-/*        $.ajax({
-            url: appConfig.apiUrl + appConfig.REST.QUADRANTS,
-            success:function(data){
-                //self.quadrants = data.quadrants;
-                console.log(data);
-            },
-            error: function(data){
-                console.log('server error')
-
-            }
-        });*/
-    var url = appConfig.apiUrl + appConfig.REST.QUADRANTS;
-    $.ajax(url)
-        .done(function(data){
-            for(var i = 0; i  < data.quadrants.length;i++){
-                data.quadrants[i].Quadrant.x = parseInt(data.quadrants[i].Quadrant.x);
-                data.quadrants[i].Quadrant.y = parseInt(data.quadrants[i].Quadrant.y);
-                data.quadrants[i].Quadrant.radius = parseInt(data.quadrants[i].Quadrant.radius);
-                self.nebulae.push(data.quadrants[i].Quadrant);
-            }
-            console.log('retrive quadrants data');
-            self.requestDataDone();
-        })
-        .fail(function(data){
-            console.log('Internal Server Error');
-        });
+        console.log('retrive quadrants data', data);
+        self.requestDataDone();
+      })
+      .fail(function(data){
+          console.warn('Server error, failed to get quadrants.');
+      });
 };
 
 Nebulae.prototype.requestDataDone = function(){
@@ -2425,7 +2370,7 @@ Nebulae.prototype.initMiniMapMarkers = function(data) {
     for (var i = 0; i < data.length; i++) {
         var nebula = data[i];
         this.app.miniMap.addMarker(nebula.x, nebula.y, nebula.id);
-        
+
     }
 };
 
@@ -2456,7 +2401,7 @@ Nebulae.prototype.update = function() {
         if (nebula) {
             if (nebula != this.currentNebula) {
                 //this.app.audio.playEnterNebulaClip();
-               
+
                 this.showIndicator(nebula.name, nebula.description);
             }
             this.currentNebula = nebula;
@@ -2477,9 +2422,9 @@ Nebulae.prototype.changeData = function(data,radius){
    if(radius){
 	   for(var i = 0; i < data.length; i++){
 	     data[i]['radius'] = radius;
-	     
+
 	   }
-   }  
+   }
    app.nebulae.nebulae = data;  // change nebulae
 
 };
@@ -2563,8 +2508,8 @@ MiniMap.prototype.addMarker = function(x, y, id) {
       }
       if(this.app.universe === 'galaxy' && id === this.app.user.Planet.system_id){
         $marker.addClass('here');
-      } 
-    } 
+      }
+    }
 
     //hardcode inactive qudrant!
     if(this.app.universe === 'qudrant'){
@@ -2579,7 +2524,7 @@ MiniMap.prototype.decoMarker = function(data){
   if (!data){
       $(".mini-map-marker").removeClass('here');
       return;
-  } 
+  }
   if(this.app.universe === 'qudrant') {
     $( ".mini-map-marker[data-pos=" + data.qudrant_id + "]").addClass('here');
     $(".star[data-id=" + data.qudrant_id + "]").addClass('here');
@@ -2609,14 +2554,14 @@ MiniMap.prototype.update = function(){
     var dx = parseInt(m.$inner.css('left'));
     var dy = parseInt(m.$inner.css('top'));
 
-    
+
     //var x = Math.round(this.xScale * -m.$inner.oldY);
     //var y = Math.round(this.yScale * -m.$inner.oldX);
     var x = Math.round(this.xScale * (-m.$inner.oldX - dx));
     var y = Math.round(this.yScale * (-m.$inner.oldY - dy));
 
     // hard code the bounds of minimap indicator
-    x = this.app.tileMap.clamp(x,0,178);  
+    x = this.app.tileMap.clamp(x,0,178);
     y = this.app.tileMap.clamp(y,0,110);
     this.$shim.css({ left: x, top: y });
 
@@ -2641,13 +2586,13 @@ function SystemMap(app){
 
     this.systemLookup = {};
     this.initElements();
-    
+
 
     $(document.body)
         .on('enterGalaxy', this.onStartedNavigating)
         .on('enterQudrant', this.onEnterQudrant);
         //.on('quitPlanet', this.quitPlanet);
-    
+
 };
 
 SystemMap.prototype.initElements = function(){
@@ -2662,7 +2607,7 @@ SystemMap.prototype.initElements = function(){
 SystemMap.prototype.initHandlers = function(){
  /*   var elem = document.getElementsByClassName('planet');
      this.hammer =  new Hammer(elem);
-    this.hammer.on('tap',function(e){  
+    this.hammer.on('tap',function(e){
         console.log(e.target);
 
     })*/
@@ -2688,7 +2633,7 @@ SystemMap.prototype.onStartedNavigating = function(e){
         app.systemMap.requestSystems(app.activeGalaxyID);
         $('#area').text('system');
     }, 2000);
-     
+
 };
 
 SystemMap.prototype.onEnterQudrant = function(){
@@ -2700,8 +2645,8 @@ SystemMap.prototype.onEnterQudrant = function(){
      app.nebulae.changeData(app.nebulae.old_nebulae);
      app.nebulae.initMiniMapMarkers(app.nebulae.nebulae);
      app.nebulae.hideIndicator();
-     
-};    
+
+};
 
 SystemMap.prototype.requestSystems = function(galaxyID){
      /*ajax call here to retrive data*/
@@ -2717,7 +2662,7 @@ SystemMap.prototype.requestSystems = function(galaxyID){
                 data.systems[i].System.age = parseInt(data.systems[i].System.age);
                 data.systems[i].System.Planet = data.systems[i].Planet;
                 tmp.push(data.systems[i].System);
-                
+
             }
             self.requestSystemsDone(tmp, self.app.nebulae.changeData);
         })
@@ -2737,7 +2682,7 @@ SystemMap.prototype.requestSystemsDone = function(data,callback){
         //console.log(d.Planet);
         d.age = Math.random();
         var dd = this.createSystemData(d.id, d.x, d.y, d.name, d.age, d.Planet, d.image_url, d.photo, d.description);
-        
+
     }
 
     this.createSystems(this.systemData);
@@ -2745,7 +2690,7 @@ SystemMap.prototype.requestSystemsDone = function(data,callback){
         callback(this.systemData,400);
         //console.log('callback');
       }
-    
+
 };
 
 SystemMap.prototype.createSystemData = function(id, x, y, name, age, planet,url,starphoto, des) {
@@ -2768,10 +2713,10 @@ SystemMap.prototype.createSystemData = function(id, x, y, name, age, planet,url,
             for(var i = 0; i <　systemData.planet.length; i++ ){
                 var n =  parseInt(systemData.planet[i].planet_edge);
                 systemData.orbits[n].occupied = true;
-                systemData.orbits[n].order = i; 
-            } 
-        } 
-         
+                systemData.orbits[n].order = i;
+            }
+        }
+
         systemData.r = tileData.r;
         systemData.c = tileData.c;
         systemData.posX = x;
@@ -2792,8 +2737,8 @@ SystemMap.prototype.createSystemElem = function(data){
 
     for(var r, i = 0; i < data.orbits.length; i++){
 
-        r = self.createOrbitsElem(data, i); 
-        system.append(r);     
+        r = self.createOrbitsElem(data, i);
+        system.append(r);
     };
     var sun = $('<div class ="sun">');
     if(data.photo !== null){
@@ -2824,7 +2769,7 @@ SystemMap.prototype.createOrbitsElem = function(data, i){
                planet.css({ backgroundImage: 'url('+ url +')' });
                planet.find('span').text(data.planet[o].name);
                orbit.addClass('occupied');
-            } 
+            }
             else {
               orbit.addClass('empty');
               planet.attr('data-edge',i);
@@ -2879,7 +2824,7 @@ SystemMap.prototype.initPlanetHandlers = function(){
     function onClick(e){
         e.preventDefault();
         e.stopPropagation(); // stops the event from bubbling up the event chain. we have touchstart event on app.control
-        
+
         self.activePlanet = $(this); // save the clicked dom element
         console.log(this);
         //self.app.screenPlanet.saveTileCenter();
@@ -2894,7 +2839,7 @@ SystemMap.prototype.initPlanetHandlers = function(){
         if(self.activePlanet.attr('data-id')){ // if the planet has been occupied (has data-id)
             // open the planet page
             //$('.orbit').hide();
-            //$('#sun').hide(); 
+            //$('#sun').hide();
 
             self.app.universe = 'planet';
             var planetID = self.activePlanet.attr('data-id');
@@ -2902,14 +2847,14 @@ SystemMap.prototype.initPlanetHandlers = function(){
             if(self.app.user !== null && self.app.user.id === userID) $(document.body).addClass('editMode');
             else $(document.body).removeClass('editMode');
             self.app.showPlanet(cx,cy,userID,planetID);
-        }  
+        }
         else{
-          
+
             if(self.app.user === null){  // force login
                 self.app.menu.forceLogin();
                 self.$galaxy.removeClass('clickOnPlanet');
                 return;
-              } 
+              }
 
             if(self.app.user.Planet.id !== null){  // each user can only have one planet!
                //self.app.message = 'You can only have one planet.';
@@ -2926,18 +2871,18 @@ SystemMap.prototype.initPlanetHandlers = function(){
             $('.menu-right').addClass('hide');
 
         }
-   
+
     }
 
 
     if(Modernizr.touch) $('.planet').on('touchstart', onClick);
     else $('.planet').on('click', onClick);
-     
+
 };
 
 SystemMap.prototype.quitPlanet = function(){
      this.app.universe = 'galaxy';
-     this.$galaxy.removeClass('clickOnPlanet'); 
+     this.$galaxy.removeClass('clickOnPlanet');
      this.steadySystem(this.clickedSystem);
      this.$galaxy.find('.planet.onClick').removeClass('onClick');
      this.app.go('navigating');
@@ -2988,7 +2933,7 @@ SystemMap.prototype.applyParallax = function(system, useParallax) {
 
         var vx = v * Math.cos(a);
         var vy = v * Math.sin(a);
-    
+
     } else {
         var vx = 0;
         var vy = 0;
@@ -3039,19 +2984,19 @@ SystemMap.prototype.updateActiveSystems = function(){
     for (var i = 0; i < this.app.tileMap.activeTiles.length; i++) {
         tile = this.app.tileMap.activeTiles[i];
         for (var j = 0; j < tile.systems.length; j++) {
-            
+
             system = tile.systems[j];
             //system.elem = system.elem;// || this.createStarElem(star);
 
 
             // Is this active star actually within the viewport?
             if (system.posX < bounds.x1 || system.posX > bounds.x2 || system.posY < bounds.y1 || system.posY > bounds.y2) {
-                
+
                 system.elem.hide();
                //console.log(bounds);
 
             } else {
-               
+
                 //if (!Modernizr.touch) this.applyParallax(system, useParallax);
                 system.elem.show();
 
@@ -3101,17 +3046,17 @@ GalaxyMap.prototype.initHandlers = function(el){
                                                                             timer = 0; }, 600);
                                         }
                                         else {
-                                            app.galaxyMap.enterGalaxy(el); 
+                                            app.galaxyMap.enterGalaxy(el);
                                             //el.removeClass('hover');
-                                            timer = 0; 
+                                            timer = 0;
                                         }
                                     });
 
-    } 
-    else  el.on('click',function(){ app.galaxyMap.enterGalaxy(el); }); 
+    }
+    else  el.on('click',function(){ app.galaxyMap.enterGalaxy(el); });
 
    // el.hover(function(){app.audio.playStarClip(Math.round(Math.random(0,1) * 6));})
-    
+
 };
 
 GalaxyMap.prototype.enterGalaxy = function(el){
@@ -3134,7 +3079,7 @@ GalaxyMap.prototype.onStartedNavigating = function(e){
         }, 1000);
     }*/
      app.galaxyMap.requestDataDone(app.galaxyMap.data);
-     
+
 };
 
 GalaxyMap.prototype.onEnterGalaxy = function(){
@@ -3155,22 +3100,24 @@ GalaxyMap.prototype.clearStarLoadingTimer = function(e){
 
 GalaxyMap.prototype.requestData = function(callback){
     var self = this;
-    var url = appConfig.apiUrl + appConfig.REST.GALAXIES;
+    var url = appConfig.galaxyService + appConfig.REST.GALAXIES;
 
     this.app.log('Retrieving Galaxy data...');
 
     $.ajax(url)
         .done(function(data){
-            //var d = {};
-            for(var i=0; i < data.galaxies.length; i++){
-               data.galaxies[i].Galaxy.x = parseInt(data.galaxies[i].Galaxy.x);
-               data.galaxies[i].Galaxy.y = parseInt(data.galaxies[i].Galaxy.y);
-               data.galaxies[i].Galaxy.age = parseInt(data.galaxies[i].Galaxy.age);
-               data.galaxies[i].Galaxy.id = parseInt(data.galaxies[i].Galaxy.id);
-               data.galaxies[i].Galaxy.quadrant_id = parseInt(data.galaxies[i].Galaxy.quadrant_id);
-               self.data.push(data.galaxies[i].Galaxy);
-            }
-            console.log(self.data);
+            _.forEach(data, (i) => {
+              self.data.push(i);
+            })
+            // for(var i=0; i < data.galaxies.length; i++){
+            //    data.galaxies[i].Galaxy.x = parseInt(data.galaxies[i].Galaxy.x);
+            //    data.galaxies[i].Galaxy.y = parseInt(data.galaxies[i].Galaxy.y);
+            //    data.galaxies[i].Galaxy.age = parseInt(data.galaxies[i].Galaxy.age);
+            //    data.galaxies[i].Galaxy.id = parseInt(data.galaxies[i].Galaxy.id);
+            //    data.galaxies[i].Galaxy.quadrantId = parseInt(data.galaxies[i].Galaxy.quadrantId);
+            //    self.data.push(data.galaxies[i].Galaxy);
+            // }
+            console.log('get galaxies:', self.data);
 
             if (typeof callback === "function") callback();
         })
@@ -3180,13 +3127,19 @@ GalaxyMap.prototype.requestData = function(callback){
 };
 
 GalaxyMap.prototype.requestDataDone = function(data){
-
-    for (var d, i = 0; i < data.length; i++) {
-        d = data[i];
-        // d.age = d.age || Math.random();
-        d.age = Math.random() * .5;
-        var dd = this.createGalaxyData(d.id, d.quadrant_id, d.x, d.y, d.name,d.description, d.age, d.image_url, d.photo, d.active);
-    }
+    console.warn('GalaxyMap request data done');
+    _.forEach(data, (d) => {
+      const age = Math.random() * .5;
+      console.warn(d.id, d.quadrantId, d.x, d.y, d.name, d.description || '', age, d.image_url, d.photo, d.active);
+      this.createGalaxyData(d.id, d.quadrantId, d.x, d.y, d.name, d.description || '', age, d.image_url, d.photo, d.active)
+    })
+    // for (var d, i = 0; i < data.length; i++) {
+    //     console.warn('fk', d, d.x, d.y)
+    //     d = data[i];
+    //     // d.age = d.age || Math.random();
+    //     d.age = Math.random() * .5;
+    //     var dd = this.createGalaxyData(d.id, d.quadrantId, d.x, d.y, d.name,d.description, d.age, d.image_url, d.photo, d.active);
+    // }
 };
 
 GalaxyMap.prototype.requestStarsFail = function(data){
@@ -3204,6 +3157,7 @@ GalaxyMap.prototype.createPlaceholderStars = function(){
 
     var h = this.app.tileMap.$inner.height();
     var w = this.app.tileMap.$inner.width();
+    console.warn('w what?', w);
 
     for (var i = 0; i < totalStars; i++) {
         var name = btoa(('' + Math.random()).substring(2, 8));
@@ -3217,7 +3171,9 @@ GalaxyMap.prototype.createPlaceholderStars = function(){
 };
 
 GalaxyMap.prototype.createGalaxyData = function(id, qid, x, y, name, text, age, url, cs, active) { // url: image_url; cs: image file name
-    var nebula = this.app.nebulae.nebulae[qid - 1];
+    // var nebula = this.app.nebulae.nebulae[qid - 1];
+    var nebula = _.find(this.app.nebulae.nebulae, (i) => i.id === qid); // find quadrant
+    console.warn('nebula: ',  nebula);
     var nx = nebula.x + x;
     var ny = nebula.y - y;
     var p = this.app.tileMap.translateMapToPage({ x: nx, y: ny });
@@ -3246,7 +3202,7 @@ GalaxyMap.prototype.createGalaxyData = function(id, qid, x, y, name, text, age, 
 };
 
 GalaxyMap.prototype.createGalaxyElem = function(data) {
-    
+
 /*    if($.inArray(data.id, this.starsInDomIDs) >= 0) {
         return $('#star-map-stars').find('[data-id="'+data.id+'"]');
     }*/
@@ -3255,7 +3211,7 @@ GalaxyMap.prototype.createGalaxyElem = function(data) {
     var $body = $('<b></b>');
     var $name = $('<i></i>');
     var $text = $('<i></i>');
-    if(this.app.user && data.id == this.app.user.Planet.galaxy_id) $galaxy.addClass('here'); 
+    if(this.app.user && data.id == this.app.user.Planet.galaxy_id) $galaxy.addClass('here');
 
   /*  if (data.cs) {
         $galaxy.addClass('competition-star');
@@ -3281,11 +3237,11 @@ GalaxyMap.prototype.createGalaxyElem = function(data) {
 
     // disable $galaxy which is not active
     if(!data.active) $galaxy.css({opacity: .3});
-   	
+
 
     $galaxy.posX = data.x;
     $galaxy.posY = data.y;
-    
+
     $galaxy.attr({ id: data.id });
     $galaxy.data({ text: $text });
 
@@ -3293,12 +3249,12 @@ GalaxyMap.prototype.createGalaxyElem = function(data) {
     if(data.active) this.initHandlers($galaxy);  // add click event to each'.star' elements
     // maintain array of star ids in the DOM
     this.galaxysInDomIDs.push(data.id);
-   
+
     return $galaxy;
 };
 
 GalaxyMap.prototype.getAgeCategory = function(age) {
-    
+
     var fl = Math.floor((1 - age) * 3);
    // console.log(age + ':' + fl);
     return Math.max(fl, 0);
@@ -3350,7 +3306,7 @@ GalaxyMap.prototype.findGalaxyData = function(id) {
 
 GalaxyMap.prototype.applyParallax = function(galaxy, useParallax) {
     if (useParallax) {
-       
+
 
         var dx = galaxy.x - this.app.tileMap.centerX;
         var dy = galaxy.y - this.app.tileMap.centerY;
@@ -3364,22 +3320,22 @@ GalaxyMap.prototype.applyParallax = function(galaxy, useParallax) {
 
         var vx = v * Math.cos(a);
         var vy = v * Math.sin(a);
-    
+
     } else {
         var vx = 0;
         var vy = 0;
     }
 
-    
+
     galaxy.parallaxX = Math.floor(galaxy.x + vx);
     galaxy.parallaxY = Math.floor(galaxy.y + vy);
-    
+
     //star.elem.css({ left: star.parallaxX, top: star.parallaxY });
     this.positionGalaxy(galaxy, galaxy.parallaxX, galaxy.parallaxY);
 };
 
 GalaxyMap.prototype.positionGalaxy = function(galaxy, x, y) {
-    
+
     if (Modernizr.csstransforms3d) {
         galaxy.elem.css(Modernizr.prefixed('transform'), 'translateX('+x+'px) translateY('+y+'px) translateZ(0)');
     } else {
@@ -3413,18 +3369,18 @@ GalaxyMap.prototype.updateActiveGalaxys = function(){
     for (var i = 0; i < this.app.tileMap.activeTiles.length; i++) {
         tile = this.app.tileMap.activeTiles[i];
         for (var j = 0; j < tile.galaxys.length; j++) {
-            
+
             galaxy = tile.galaxys[j];
             galaxy.elem = galaxy.elem || this.createGalaxyElem(galaxy);
 
 
             // Is this active star actually within the viewport?
             if (galaxy.posX < bounds.x1 || galaxy.posX > bounds.x2 || galaxy.posY < bounds.y1 || galaxy.posY > bounds.y2) {
-                
+
                // galaxy.elem.hide();
 
             } else {
-              
+
                 this.applyParallax(galaxy, useParallax);
                // galaxy.elem.show();
             }
@@ -3665,7 +3621,7 @@ StarMap.prototype.createStarData = function(id, x, y, name, age, url, cs) {
 };
 
 StarMap.prototype.createStarElem = function(data) {
-    
+
     if($.inArray(data.id, this.starsInDomIDs) >= 0) {
         return $('#star-map-stars').find('[data-id="'+data.id+'"]');
     }
@@ -3694,7 +3650,7 @@ StarMap.prototype.createStarElem = function(data) {
     }
     $star.posX = data.x;
     $star.posY = data.y;
-    
+
     $star.attr({ id: data.id });
     $star.data({ text: $text });
 
@@ -3707,7 +3663,7 @@ StarMap.prototype.createStarElem = function(data) {
 };
 
 StarMap.prototype.getAgeCategory = function(age) {
-    
+
     var fl = Math.floor((1 - age) * 7);
     return Math.max(fl, 0);
 };
@@ -3758,7 +3714,7 @@ StarMap.prototype.findStarData = function(id) {
 
 StarMap.prototype.applyParallax = function(star, useParallax) {
     if (useParallax) {
-       
+
 
         var dx = star.x - this.app.tileMap.centerX;
         var dy = star.y - this.app.tileMap.centerY;
@@ -3772,22 +3728,22 @@ StarMap.prototype.applyParallax = function(star, useParallax) {
 
         var vx = v * Math.cos(a);
         var vy = v * Math.sin(a);
-    
+
     } else {
         var vx = 0;
         var vy = 0;
     }
 
-    
+
     star.parallaxX = Math.floor(star.x + vx);
     star.parallaxY = Math.floor(star.y + vy);
-    
+
     //star.elem.css({ left: star.parallaxX, top: star.parallaxY });
     this.positionStar(star, star.parallaxX, star.parallaxY);
 };
 
 StarMap.prototype.positionStar = function(star, x, y) {
-    
+
     if (Modernizr.csstransforms3d) {
         star.elem.css(Modernizr.prefixed('transform'), 'translateX('+x+'px) translateY('+y+'px) translateZ(0)');
     } else {
@@ -3820,18 +3776,18 @@ StarMap.prototype.updateActiveStars = function(){
     for (var i = 0; i < this.app.tileMap.activeTiles.length; i++) {
         tile = this.app.tileMap.activeTiles[i];
         for (var j = 0; j < tile.stars.length; j++) {
-            
+
             star = tile.stars[j];
             star.elem = star.elem || this.createStarElem(star);
 
 
             // Is this active star actually within the viewport?
             if (star.posX < bounds.x1 || star.posX > bounds.x2 || star.posY < bounds.y1 || star.posY > bounds.y2) {
-                
+
                 star.elem.hide();
 
             } else {
-              
+
                 this.applyParallax(star, useParallax);
                 star.elem.show();
             }
@@ -3983,8 +3939,8 @@ SlideControls.prototype.onMouseMove  = function(e){
     app.control.startPos.y = app.control.endPos.y;
 
     app.control.caculateVelocity(app.control.deltaPos.x, app.control.deltaPos.y);
- 
-    
+
+
 };
 
 SlideControls.prototype.onMouseUp = function (e){
@@ -4003,7 +3959,7 @@ SlideControls.prototype.touchstart = function(e){
      app.control.mode = 0;
      app.control.startPos.x = event.touches[ 0 ].pageX;
      app.control.startPos.y = event.touches[ 0 ].pageY;
-     app.control.tileStartPos.x = app.tileMap.desPoint.x; 
+     app.control.tileStartPos.x = app.tileMap.desPoint.x;
      app.control.tileStartPos.y = app.tileMap.desPoint.y;
      //console.log( app.control.tileStartPos.x + ':'+ app.control.tileStartPos.y);
 };
@@ -4048,7 +4004,7 @@ SlideControls.prototype.touchMinimap = function(e){
 SlideControls.prototype.clickPlanet = function(x, y){  // x, y are the page pos of the planet
      app.control.mode = 1;
      // caculate the distance to the page center/specific point
-     // var dx = app.halfWinW - x;  
+     // var dx = app.halfWinW - x;
      // var dy = app.halfWinH - y;
 
      // caculate new Center
@@ -4058,8 +4014,8 @@ SlideControls.prototype.clickPlanet = function(x, y){  // x, y are the page pos 
     app.control.animateTo.x = app.halfWinW - newX;
     app.control.animateTo.y = app.halfWinH - newY;
 
-    
- 
+
+
 };
 
 
@@ -4089,21 +4045,21 @@ SlideControls.prototype.caculateVelocity = function(x,y){
     if(!Modernizr.touch){
         this.deltaPos.x = x/this.app.winW * this.app.tileMap.$inner.width()  * this.speedFactor;
         this.deltaPos.y = y/this.app.winH * this.app.tileMap.$inner.height()  * this.speedFactor;
-    } 
+    }
     else{
         this.deltaPos.x = x/this.app.winW * 2 * this.app.tileMap.$inner.width()  * 0.6;
         this.deltaPos.y = y/this.app.winH * 2 * this.app.tileMap.$inner.height()  * 0.6;
      }
-        
+
 };
 
 SlideControls.prototype.pan = function(p){
 
     this.tileStartPos.x += this.deltaPos.x;
-    this.tileStartPos.y += this.deltaPos.y; 
+    this.tileStartPos.y += this.deltaPos.y;
     //this.tileStartPos.x = this.app.tileMap.constrainX(this.tileStartPos.x);
     //this.tileStartPos.y = this.app.tileMap.constrainY(this.tileStartPos.y);
-     
+
         /*p.x += (this.tileStartPos.x - p.x) *0.08;
         p.y += (this.tileStartPos.y - p.y) * 0.08;*/
 
@@ -4114,34 +4070,34 @@ SlideControls.prototype.pan = function(p){
 
 SlideControls.prototype.easing = function(d,s,easeAmount){
        var distance = d - s;
-        if( Math.abs(distance) <= 0.01) {distance = 0; return d;} 
+        if( Math.abs(distance) <= 0.01) {distance = 0; return d;}
         //console.log(distance);
         var p = s + distance * easeAmount;
         return p;
-      //s += (d - s) * easeAmount;   
+      //s += (d - s) * easeAmount;
 };
 
 SlideControls.prototype.animate = function(p){
-     
+
     var f = (Modernizr.touch)? 0.16 : 0.08;
     p.x = this.easing(this.animateTo.x, p.x, f);
     p.y = this.easing(this.animateTo.y, p.y, f);
 
     //console.log(p);
-  
+
 };
 
 SlideControls.prototype.update = function(){
        if(!this.enabled || this.mode === -1 ) return;
-       
+
 
        if(this.mode === 0 ) {//pan mode
-               
+
               this.pan(this.point);
 
         }
         else {
-           
+
             this.animate(this.point);
         }
 };
@@ -4150,7 +4106,7 @@ SlideControls.prototype.update = function(){
 
 function Planet(app){
     this.app = app;
-    //this.$elem = 
+    //this.$elem =
 
 
 };
@@ -4166,7 +4122,7 @@ function TileMap(app) {
 
     this.activeTiles = [];
     //this.control = new SlideControls(this.desPoint,this.$elem[0]);
-    
+
 
     this.initElements();
     this.initHandlers();
@@ -4187,11 +4143,11 @@ TileMap.prototype.randomisePosition = function(){
        key = 2;
         coords = arrStartPositions[key];
 
-    
+
     // hard coded mousemove at propsed center
     this.app.pageX = this.app.halfWinW;//coords[0];
     this.app.pageY = this.app.halfWinH;//coords[1];
-     
+
     // Set initial screen to specific place
     this.center(coords[0], coords[1]);
     //this.updateMapPosition(true);
@@ -4205,7 +4161,7 @@ TileMap.prototype.onEnterGalaxy = function(){
     for(var i = 0; i < app.tileMap.tileMatrix.length; i++){
             for(var j = 0; j <　app.tileMap.tileMatrix[i].length; j++){
                 app.tileMap.tileMatrix[i][j].galaxys.length = 0;
-            }       
+            }
     }
 
 };
@@ -4216,7 +4172,7 @@ TileMap.prototype.onEnterQudrant = function(){
     for(var i = 0; i < app.tileMap.tileMatrix.length; i++){
             for(var j = 0; j <　app.tileMap.tileMatrix[i].length; j++){
                 app.tileMap.tileMatrix[i][j].systems.length = 0;
-            }       
+            }
     }
 
 };
@@ -4426,7 +4382,7 @@ TileMap.prototype.updateMapPosition = function(bypass){
 
 
 TileMap.prototype.positionTileMap = function(x, y) {
-    
+
     if (Modernizr.csstransforms3d) {
         // var tr = 'transform'
         // if(Modernizr.touch) {tr = '-webkit-transform';console.log(tr);}
@@ -4448,12 +4404,12 @@ TileMap.prototype.positionTileMap = function(x, y) {
 };
 
 TileMap.prototype.center = function(x, y) {
-    
+
     this.centerX = x;
     this.centerY = y;
     x = this.app.halfWinW - x;
     y = this.app.halfWinH - y;
-    
+
     this.to(x, y);
 };
 
@@ -4463,7 +4419,7 @@ TileMap.prototype.to = function(x, y) {
 };
 
 TileMap.prototype.setBounds = function(x, y){
-    
+
     // the image center is  tilemap Center; bounds screen size plus 400 (200 per side)
  /*   bounds.x1 = -x - this.app.winW/2  - 200;
     bounds.y1 = -y - this.app.winH;
@@ -4477,7 +4433,7 @@ TileMap.prototype.setBounds = function(x, y){
 };
 
 TileMap.prototype.animateCenter = function(x, y, callback) {
-    
+
     x = this.app.halfWinW - x;
     y = this.app.halfWinH - y;
 
@@ -4495,7 +4451,7 @@ TileMap.prototype.animateCenter = function(x, y, callback) {
 };
 
 TileMap.prototype.animateTo = function(x, y, callback) {
-    
+
     var self = this;
 
     this.$inner.animate({ left: x, top: y }, {
@@ -4538,7 +4494,7 @@ TileMap.prototype.clamp = function(val, min, max) {
 function Slider(dom,name){
   this.$container = (dom[0] !== undefined ) ? dom : $(document.body);
   this.name = name;
-  this.$elem = $('<ul class="slider">'); 
+  this.$elem = $('<ul class="slider">');
   this.pos = 0; // current position
   this.totalSlides = 0;
   this.sliderWidth = 0;
@@ -4578,7 +4534,7 @@ Slider.prototype.initHandlers = function(){
 
   });
 
-  // delete rocket 
+  // delete rocket
 
     $('#btn-delRocket').on('click',function(e){
       e.preventDefault();
@@ -4600,7 +4556,7 @@ Slider.prototype.addRocket = function(planet_id){
     self.$container.parent().addClass('state-loading');
 
     fd.append("data[Rocket][planet_id]",planet_id);
-    var url = app.config.apiUrl +　app.config.REST.ADDROCKET;      
+    var url = app.config.apiUrl +　app.config.REST.ADDROCKET;
     $.ajax({
       url: url,
       type: "POST",
@@ -4635,8 +4591,8 @@ Slider.prototype.addRocket = function(planet_id){
   });
 
 /*     for (var pair of fd.entries()) {
-      console.log(pair[0]); 
-      console.log(pair[1]); 
+      console.log(pair[0]);
+      console.log(pair[1]);
   }*/
 
 };
@@ -4645,7 +4601,7 @@ Slider.prototype.delRocket = function(id,planet_id){
       var self = this;
       console.log(id);
       var url = app.config.apiUrl +　app.config.REST.DELROCKET + id + app.config.REST.SUFFIX;
-      
+
       self.$container.parent().addClass('state-loading');
 
       $.ajax({
@@ -4663,7 +4619,7 @@ Slider.prototype.delRocket = function(id,planet_id){
           console.log(status);
         },
     }).progress(function(e) {  // use jquery progress plugin
-         barLoading($('#upload-rocket-bar'),100);    
+         barLoading($('#upload-rocket-bar'),100);
     });
 };
 
@@ -4673,9 +4629,9 @@ Slider.prototype.requestData =  function(planetID){
   // var data = selectOfflineData(testRocketsData,planetID,true)
       var self = this;
       $.ajax( {
-          url: app.config.apiUrl +　app.config.REST.GETROCKETS + planetID + app.config.REST.SUFFIX,        
+          url: app.config.apiUrl +　app.config.REST.GETROCKETS + planetID + app.config.REST.SUFFIX,
           success: function( data) {
-              
+
               //console.log(data.rockets);
               self.requestDataDone(data.rockets);
 
@@ -4685,7 +4641,7 @@ Slider.prototype.requestData =  function(planetID){
             console.log('server error');
           }
       });
-    
+
 };
 
 Slider.prototype.requestDataDone = function(data){
@@ -4718,14 +4674,14 @@ Slider.prototype.createSlides = function (data){
 
        this.$container.append(this.$elem);
        $('#btn-delRocket').removeClass('noData');
-       
+
 
        // redraw after editing
        if(self.pos !== 0) {
 
         self.$elem.css('left', -(self.sliderWidth * self.pos));
-       } 
-       
+       }
+
     }
     else{
       var noData = $('<span class="noData">No Data</span>');
@@ -4750,11 +4706,11 @@ Slider.prototype.createButtons = function(n){
       function slideLeft(){
             self.pos--;
             if(self.pos==-1){ self.pos = self.totalSlides-1; }
-            self.$elem.css('left', -(self.sliderWidth * self.pos));  
+            self.$elem.css('left', -(self.sliderWidth * self.pos));
       };
 
       bNext.click(slideRight);
-      bPrev.click(slideLeft);    
+      bPrev.click(slideLeft);
 };
 
 Slider.prototype.empty = function(){
@@ -4779,7 +4735,7 @@ Slider.prototype.getSlideId = function(){
 /*Slider.prototype.slideLeft = function (){
     this.pos--;
     if(this.pos==-1){ this.pos = this.totalSlides-1; }
-    this.$elem.css('left', -(this.sliderWidth * this.pos));    
+    this.$elem.css('left', -(this.sliderWidth * this.pos));
 
 };
 
@@ -4787,7 +4743,7 @@ Slider.prototype.slideRight = function(){
     console.log(this);
     this.pos++;
     if(this.pos==this.otalSlides){ this.pos = 0; }
-    this.$elem.css('left', -(this.sliderWidth * this.pos));    
+    this.$elem.css('left', -(this.sliderWidth * this.pos));
 };*/
 
 /* videoSlider inherit from slider*/
@@ -4798,10 +4754,10 @@ function VideoSlider(dom, name){
       this.$editBtn = $('#btn-editVideo');
       Slider.call(this, dom, name);
 
-      
+
 };
 
-VideoSlider.prototype = Object.create(Slider.prototype); 
+VideoSlider.prototype = Object.create(Slider.prototype);
 
 // Set the "constructor" property to refer to Child
 VideoSlider.prototype.constructor = VideoSlider;
@@ -4813,9 +4769,9 @@ VideoSlider.prototype.requestData =  function(planetID){
     // this.requestDataDone(data);
     var self = this;
       $.ajax( {
-          url: app.config.apiUrl +　app.config.REST.GETVIDEOS + planetID + app.config.REST.SUFFIX,        
+          url: app.config.apiUrl +　app.config.REST.GETVIDEOS + planetID + app.config.REST.SUFFIX,
           success: function( data) {
-              
+
               console.log(data.videos);
               self.requestDataDone(data.videos);
 
@@ -4838,16 +4794,16 @@ VideoSlider.prototype.createSingleSlide = function(i,vid,id,name,photo,pdf,ppt,d
       var sli = $('<li>');
       var btnPlay = $('<div class="play">');
       var img_url; // put default back image url here.
-      
+
 
       if(vid !== null && vid !== "") img_url  = this.getBackgroundImage(vid);
       if(photo !== null) img_url = 'url(' + app.config.apiUrl + '/app/webroot/files/video/photo/'+ id + '/' + photo + ')';
-      
+
       var desText = $('<span class="project-des">'+ des + '</span>' );
 
       var n = i + 1;
       var titleText = $('<span class="project-title">'+ self.name + ' ' + n + ': ' + name + '</span>' );
-      
+
       var desBtn = $('<a class="btn des-btn">');
       var pdfBtn = $('<a class="btn pdf-btn">');
       var pptBtn = $('<a class="btn ppt-btn">');
@@ -4862,7 +4818,7 @@ VideoSlider.prototype.createSingleSlide = function(i,vid,id,name,photo,pdf,ppt,d
         pptBtn.attr("href", app.config.apiUrl + '/app/webroot/files/video/ppt/'+ id + '/' + ppt).attr("download", ppt);
         Btns.append(pptBtn);
       };
-      
+
       if(des !== null && des !== "") Btns.append(desBtn);
 
       sli.css('background-image', img_url).data({ID: id});
@@ -4871,7 +4827,7 @@ VideoSlider.prototype.createSingleSlide = function(i,vid,id,name,photo,pdf,ppt,d
       if(vid !== null && vid !== "") {
         sli.attr('id',vid);
         btnPlay.data({ID: vid})
-        $.get("https://www.googleapis.com/youtube/v3/videos?part=snippet&id=" + vid + "&key=AIzaSyA_cxz6n5dCd0nqf7yWHtdKupo3zUZi3ho", 
+        $.get("https://www.googleapis.com/youtube/v3/videos?part=snippet&id=" + vid + "&key=AIzaSyA_cxz6n5dCd0nqf7yWHtdKupo3zUZi3ho",
                function(dd){
                   if(name === null ||　name === "") {
                     titleText = $('<span class="project-title">'+ self.name + ' ' + n + ': ' + dd.items[0].snippet.title + '</span>' );
@@ -4879,7 +4835,7 @@ VideoSlider.prototype.createSingleSlide = function(i,vid,id,name,photo,pdf,ppt,d
                   }
                   sli.append(btnPlay);//.append(text)
                });
-      } 
+      }
       if(name !== null && name !== "") sli.append(titleText);
       sli.append(desText);
       self.$elem.append(sli);
@@ -4928,7 +4884,7 @@ VideoSlider.prototype.createSlides = function(data){  //rewrite createSlides met
 VideoSlider.prototype.createButtons = function(n){  // add play button event here
 
       var self = this;
-      
+
       function createVideo(){
               var parent = $(this).parent();
               //console.log(parent[0].id);
@@ -4950,7 +4906,7 @@ VideoSlider.prototype.createButtons = function(n){  // add play button event her
       //console.log(this.$elem.find('li'));
 
       if(n < 2) return;
-      
+
       var bNext = $('<div class="btns next">');
       var bPrev = $('<div class="btns previous">');
       this.$container.append(bNext).append(bPrev);
@@ -4965,7 +4921,7 @@ VideoSlider.prototype.createButtons = function(n){  // add play button event her
       function slideLeft(){
             self.pos--;
             if(self.pos==-1){ self.pos = self.totalSlides-1; }
-            self.$elem.css('left', -(self.sliderWidth * self.pos));  
+            self.$elem.css('left', -(self.sliderWidth * self.pos));
             stopVideo();
       };
 
@@ -4977,7 +4933,7 @@ VideoSlider.prototype.createButtons = function(n){  // add play button event her
       }
 
       bNext.click(slideRight);
-      bPrev.click(slideLeft);  
+      bPrev.click(slideLeft);
 
       $('.des-btn').click(function(e){
         e.preventDefault();
@@ -5002,7 +4958,7 @@ VideoSlider.prototype.initHandlers = function(){
       e.preventDefault();
       //self.addVideo(app.systemMap.activePlanet.attr('data-id'));
       app.screenProjectForm.enterScreen('ADD');
-      
+
   });
 
   this.$delBtn.on('click',function(e){
@@ -5036,14 +4992,14 @@ VideoSlider.prototype.addVideo = function(planet_id){
         _data.Video = {};
         _data.Video.youtube_url = match[2];
         _data.Video.planet_id = planet_id;
-        
+
     $.ajax({
-          //url: "http://localhost:8080/cake/videos/add.json", 
+          //url: "http://localhost:8080/cake/videos/add.json",
           url: appConfig.apiUrl + appConfig.REST.ADDVIDEO,
           type:"POST",
           data:_data,
           success:function(data){
-            console.log(data); 
+            console.log(data);
             self.redraw(planet_id);
           },
           error: function(status){
@@ -5052,7 +5008,7 @@ VideoSlider.prototype.addVideo = function(planet_id){
 
         });
 
-  } 
+  }
   else {
         //error
     console.log('not a valid youtube link');
@@ -5066,7 +5022,7 @@ VideoSlider.prototype.delVideo = function(id,planet_id){
       url: url,
       type:"POST",
       success:function(data){
-        console.log(data); 
+        console.log(data);
         self.redraw(planet_id);
       },
       error: function(status){
@@ -5081,7 +5037,7 @@ VideoSlider.prototype.delVideo = function(id,planet_id){
 //   var self = this;
 //   var url = appConfig.apiUrl + appConfig.REST.GETVIDEO + id + appConfig.REST.SUFFIX;
 //   $.ajax( {
-//           url: url,    
+//           url: url,
 //           success: function( data) {
 //             console.log(data.message);
 
@@ -5095,7 +5051,7 @@ VideoSlider.prototype.delVideo = function(id,planet_id){
 
 /* Page Class*/
 // function Page(dom){
-//     this.$container = this.$container = (dom[0] !== undefined ) ? dom : $(document.body); 
+//     this.$container = this.$container = (dom[0] !== undefined ) ? dom : $(document.body);
 //     //this.requestData(0);
 // };
 
@@ -5103,14 +5059,14 @@ VideoSlider.prototype.delVideo = function(id,planet_id){
 //     //Ajax call with url
 
 //     //test it with offline data
-    
+
 //     this.requestDataDone(0)
 // };
 
 /* PlanetPage */
 function PlanetInfoPage(dom){
    this.$container = (dom[0] !== undefined ) ? dom : $(document.body);
-   this.$form = $("#planetInfoForm"); 
+   this.$form = $("#planetInfoForm");
    this.$btn = $('<div class="btn btn-submit">Sumit Change</div>');
    this.initHandlers();
 };
@@ -5147,11 +5103,11 @@ PlanetInfoPage.prototype.editPlanet = function(planet_id){
     var fe =  $("#planetInfoForm")[0];
     var fd = new FormData(fe);
     for (var pair of fd.entries()) {
-      console.log(pair); 
+      console.log(pair);
     }
 
     var url = app.config.apiUrl +　app.config.REST.EDITPLANET + planet_id + app.config.REST.SUFFIX;
-    
+
     barStart($('#submit-planet-info'));
 
     $.ajax({
@@ -5161,14 +5117,14 @@ PlanetInfoPage.prototype.editPlanet = function(planet_id){
       processData: false,  // tell jQuery not to process the data
       contentType: false,   // tell jQuery not to set contentType
       success:function(data){
-        console.log(data); 
+        console.log(data);
         if(data.message.type === 'success'){
           self.updatePlanet(app.systemMap.activePlanet, data);
           barSuccess($('#submit-planet-info'));
         } else{
           var em = 'error: ';
           if(data.message.text.photo)  em += data.message.text.photo[0];
-          
+
           barError($('#submit-planet-info'), em);
         }
 
@@ -5221,7 +5177,7 @@ PlanetInfoPage.prototype.editMode = function(b){
 /* BioPage */
 
 function BioPage(dom){
-  this.$container = (dom[0] !== undefined ) ? dom : $(document.body); 
+  this.$container = (dom[0] !== undefined ) ? dom : $(document.body);
   this.$form = $("<form id='bioForm'>");
   //this.$btn = $('<div class="btn btn-submit">Submit Changes</div>');
   this.$btn = $('<button class="progress-button btn btn-submit" id="submit-bio-info" data-style="rotate-back" data-perspective="" data-horizontal=""><span class="progress-wrap"><span class="b-content">Submit Changes</span><span class="progress"><span class="progress-inner notransition" style="width: 0px; opacity: 1;"></span></span></span></button>');
@@ -5238,7 +5194,7 @@ BioPage.prototype.initHandlers = function(){
             }
             self.editWeblink();
         });
-            
+
 };
 
 BioPage.prototype.editProfile = function(){
@@ -5246,7 +5202,7 @@ BioPage.prototype.editProfile = function(){
       var fe = $('#bioForm')[0];
       fd = new FormData(fe);
       // for (var pair of fd.entries()) {
-      //    console.log(pair);    
+      //    console.log(pair);
       // }
       if($('#avatarPhoto').val() === "") {  // if file input is empty
         fd.delete('data[Profile][photo]');
@@ -5262,7 +5218,7 @@ BioPage.prototype.editProfile = function(){
           processData: false,  // tell jQuery not to process the data
           contentType: false,   // tell jQuery not to set contentType
           success:function(data){
-            console.log(data); 
+            console.log(data);
             if(data.message.type === 'success'){
               barSuccess($('#submit-bio-info'));
             }
@@ -5284,7 +5240,7 @@ BioPage.prototype.editProfile = function(){
      barLoading($('#submit-bio-info'),percentage);
     }
   });
- 
+
 };
 
 BioPage.prototype.editWeblink = function(){
@@ -5302,7 +5258,7 @@ BioPage.prototype.editWeblink = function(){
         type:"POST",
         data: _data,
         success:function(data){
-          console.log(data); 
+          console.log(data);
           self.renderWeb(data.message.profile.Profile);
         },
         error: function(status){
@@ -5316,17 +5272,17 @@ BioPage.prototype.requestData = function(userID){
     var self = this;
     //console.log(userID);
     //var data = selectOfflineData(testUserData,userID);
-   
+
    console.log( $('#submit-bio-info'));
 
     var url = appConfig.apiUrl + appConfig.REST.GETPROFILE + userID + appConfig.REST.SUFFIX;
     console.log(url);
     $.ajax( {
-          url: url,    
+          url: url,
           success: function( data) {
             console.log(data.message);
               self.requestDataDone(data.message.profile.Profile);
-              
+
               //self.drawSystems();
           },
           error: function(status){
@@ -5359,7 +5315,7 @@ BioPage.prototype.renderList = function(objData){
      var el = $('<ul class="list">');
      for (var prop in objData){
           if(prop !== 'id' && prop !== 'user_id' && prop !== 'website' && prop !== 'avatar_url' && prop !== 'photo'){
-              var li = $('<li>'); 
+              var li = $('<li>');
               var content = (objData[prop] === null || objData[prop] === "null") ? "" : objData[prop];
              // console.log(content);
               var input = $('<input class="gate" id="' + prop +'" name="data[Profile][' + prop +']"' +'type="text" placeholder="please edit" disabled ="true" value="'+ content + '">');
@@ -5374,7 +5330,7 @@ BioPage.prototype.renderList = function(objData){
      this.$form.append(this.$btn);
      this.$container.append(this.$form);
      this.$btn.hide();
-    
+
     // input change
     this.$form.find('ul input').on('change',function(e){
       e.preventDefault();
@@ -5416,13 +5372,13 @@ BioPage.prototype.renderWeb = function(data){
 BioPage.prototype.empty = function(){
     this.$container.empty();
     this.$form.empty();
-    $('.planet-data.web iframe').attr({src: ''}); 
+    $('.planet-data.web iframe').attr({src: ''});
     $('.planet-data.web').find('.nodata').remove();
     $('.planet-data.web a').text("")
 };
 
 /*BioPage.prototype.recreateData = function(data){  // convert obj to array
-        var array = $.map(data, function(value, index){ 
+        var array = $.map(data, function(value, index){
             var obj = {};
             obj.title = index;
             obj.value = value;
@@ -5434,7 +5390,7 @@ BioPage.prototype.empty = function(){
 
 /* Skill Page */
 function SkillPage(dom){
-  this.$container = (dom !== undefined ) ? dom : $(document.body); 
+  this.$container = (dom !== undefined ) ? dom : $(document.body);
   this.$form = $('.addSkillForm');
   this.$formBtn = $('.btn-addSkill');
   this.initHandlers();
@@ -5454,9 +5410,9 @@ SkillPage.prototype.requestData = function(planetID){
     console.log('planetID： ' + planetID);
       var self = this;
       $.ajax( {
-          url: app.config.apiUrl +　app.config.REST.GETSKILLS+ planetID + app.config.REST.SUFFIX,        
+          url: app.config.apiUrl +　app.config.REST.GETSKILLS+ planetID + app.config.REST.SUFFIX,
           success: function( data) {
-              
+
               console.log(data.skills);
               self.requestDataDone(data.skills);
 
@@ -5471,7 +5427,7 @@ SkillPage.prototype.requestData = function(planetID){
 SkillPage.prototype.requestDataDone = function(data){
      if(!$('.planet-info-container').hasClass('active')) return;
      this.renderList(data);
-     
+
 };
 
 SkillPage.prototype.renderList = function(data){
@@ -5495,13 +5451,13 @@ SkillPage.prototype.renderList = function(data){
 
         rating.attr({'data-level':data[i].Skill.level});
         //var level = $('<span><span class ="rating" data-level ='+ data[i].level +' ></span></span>');
-        rating.rateYo( {rating: data[i].Skill.level, 
-                    starWidth: "16px", 
+        rating.rateYo( {rating: data[i].Skill.level,
+                    starWidth: "16px",
                     readOnly: true
                     })
        level.append(rating);
-        li.append(type).append(name).append(level).append(btn); 
-        el.append(li); 
+        li.append(type).append(name).append(level).append(btn);
+        el.append(li);
      }
      this.$container.append(el);
 
@@ -5526,13 +5482,13 @@ SkillPage.prototype.addSkill = function(planet_id){
       processData: false,  // tell jQuery not to process the data
       contentType: false,   // tell jQuery not to set contentType
       success:function(data){
-        console.log(data); 
+        console.log(data);
         if(data.message.type === 'error') self.showError();
         else{
          app.skillpage.$form.find('input').val('');
          self.addList(data.message.skill);
         }
-     
+
       },
       error: function(status){
         console.log(status);
@@ -5549,7 +5505,7 @@ SkillPage.prototype.delSkill = function(id, dom){
       url: app.config.apiUrl +　app.config.REST.DELSKILL + id + app.config.REST.SUFFIX,
       type:"POST",
       success:function(data){
-        console.log(data); 
+        console.log(data);
         dom.remove();
         //to-do: remove btn event
       },
@@ -5576,34 +5532,34 @@ SkillPage.prototype.addList = function(data){
                   var dom = $(this).parent();
                  var id = dom.attr('data-id');
                  self.delSkill(id,dom);
-                
+
           })
 
         rating.attr({'data-level':data.Skill.level});
         //var level = $('<span><span class ="rating" data-level ='+ data[i].level +' ></span></span>');
-        rating.rateYo( {rating: data.Skill.level, 
-                    starWidth: "16px", 
+        rating.rateYo( {rating: data.Skill.level,
+                    starWidth: "16px",
                     readOnly: true
                     })
        level.append(rating);
-        li.append(type).append(name).append(level).append(btn); 
+        li.append(type).append(name).append(level).append(btn);
         el.append(li);
         var tmp = self.$container.find('.nodata');
-        tmp.hide(); // hide nodata dom 
+        tmp.hide(); // hide nodata dom
 };
 
 SkillPage.prototype.showError = function(){
    $('#skillerror').text('input error.').css({'height':'30px'});
        setTimeout(function(){
-           $('#skillerror').text('').css({'height':'0px'});  
+           $('#skillerror').text('').css({'height':'0px'});
         }, 1500);
 };
 
 
 
 // SkillPage.prototype.renderRatingStar = function(){
-//     $('.rating').rateYo( {rating: $(this).attr('data-level'), 
-//                     starWidth: "16px", 
+//     $('.rating').rateYo( {rating: $(this).attr('data-level'),
+//                     starWidth: "16px",
 //                     readOnly: true
 //                     })
 // }
@@ -5650,7 +5606,7 @@ function encodeRFC5987ValueChars (str) {
         // so we do not need to escape it
         replace(/['()]/g, escape). // i.e., %27 %28 %29
         replace(/\*/g, '%2A').
-            // The following are not required for percent-encoding per RFC5987, 
+            // The following are not required for percent-encoding per RFC5987,
             // so we can allow for a little better readability over the wire: |`^
             replace(/%(?:7C|60|5E)/g, unescape);
 };
@@ -5710,20 +5666,20 @@ function barRecover(dom){
     var vendors = ['ms', 'moz', 'webkit', 'o'];
     for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
         window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
-        window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame'] 
+        window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame']
                                    || window[vendors[x]+'CancelRequestAnimationFrame'];
     }
- 
+
     if (!window.requestAnimationFrame)
         window.requestAnimationFrame = function(callback, element) {
             var currTime = new Date().getTime();
             var timeToCall = Math.max(0, 16 - (currTime - lastTime));
-            var id = window.setTimeout(function() { callback(currTime + timeToCall); }, 
+            var id = window.setTimeout(function() { callback(currTime + timeToCall); },
               timeToCall);
             lastTime = currTime + timeToCall;
             return id;
         };
- 
+
     if (!window.cancelAnimationFrame)
         window.cancelAnimationFrame = function(id) {
             clearTimeout(id);
@@ -5747,8 +5703,6 @@ function selectElementText(el) {
 
 // Deselects all text in the page.
 function removeTextSelections() {
-    if (document.selection) document.selection.empty(); 
+    if (document.selection) document.selection.empty();
     else if (window.getSelection) window.getSelection().removeAllRanges();
 };
-
-
