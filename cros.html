@@ -1,7 +1,7 @@
 <html>
 <head>
   <script type="text/javascript" src="./js/libs/jquery-latest.min.js"></script>
-  <script type="text/javascript" src="./js/libs/jquery.ajax-cross-origin.min.js"></script>
+  <!-- <script type="text/javascript" src="./js/libs/jquery.ajax-cross-origin.min.js"></script> -->
 </head>
 
 <body>
@@ -36,6 +36,7 @@ $(function() {
       url: url,
       success: function(data) {
         $( '#test' ).html(data);
+        console.warn('get data', data)
       }
     });
   });
