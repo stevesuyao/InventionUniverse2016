@@ -33,7 +33,6 @@ $(function() {
     var url = $( '#url' ).val()
 
     $.ajax({
-      crossOrigin: true,
       url: url,
       success: function(data) {
         $( '#test' ).html(data);
