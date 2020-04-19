@@ -4,6 +4,7 @@ var app,
         apiUrl: 'https://byr7m3hqxg.execute-api.us-east-1.amazonaws.com/qa',  //server ip address
         quadrantService: 'https://byr7m3hqxg.execute-api.us-east-1.amazonaws.com/qa',
         galaxyService: 'https://2fol67t42e.execute-api.us-east-1.amazonaws.com/qa',
+        systemService: 'https://jptk09kqp5.execute-api.us-east-1.amazonaws.com/qa',
         pagination: 1,
         initialBatchCount: 200,
         dataCount: 500,
@@ -35,8 +36,8 @@ var app,
                 LOGOUT: '/users/logout.json',
                 GALAXIES: '/galaxy',
                 QUADRANTS:'/quadrant',
-                SYSTEMS: '/systems/systemslist/',
-                ALLSYSTEMS: '/systems.json',
+                SYSTEMS: '/system',
+                ALLSYSTEMS: '/system',
                 PLANETS:'/planets/planetslist/',
                 ADDPLANETS:'/planets/add.json',
                 EDITPLANET:'/planets/edit/',
@@ -1344,10 +1345,10 @@ function ScreenFront(app) {
             self.app.menu.openMenu();
             self.app.control.enabled = true;
             self.app.go('navigating');
-            self.app.refreshLogin('username','password', function(){
-                                                  app.loginMessage($('#error-login'),$('#password'));
-                                                  app.menu.afterLogin(app.user);
-                                                });
+            // self.app.refreshLogin('username','password', function(){
+            //                                       app.loginMessage($('#error-login'),$('#password'));
+            //                                       app.menu.afterLogin(app.user);
+            //                                     });
         }, 3000);
         self.$elem.remove();
         //self.leaveScreen();
@@ -1393,7 +1394,7 @@ ScreenFront.prototype.getHotRocket = function(){
 
 ScreenFront.prototype.enterScreen = function(){
    console.log('enterScreenFront');
-   this.getHotRocket();
+   // this.getHotRocket();
    var self = this;
     setTimeout(function() {
         $('#parallax').parallax();
@@ -2649,22 +2650,25 @@ SystemMap.prototype.onEnterQudrant = function(){
 };
 
 SystemMap.prototype.requestSystems = function(galaxyID){
+  console.warn('dk', galaxyID);
      /*ajax call here to retrive data*/
     var self = this;
-    var url = appConfig.apiUrl + appConfig.REST.SYSTEMS + galaxyID + appConfig.REST.SUFFIX;
+    var url = appConfig.systemService + appConfig.REST.SYSTEMS + '/' + galaxyID;
+    console.warn('url', url);
     $.ajax(url)
         .done(function(data){
-            console.log('retrive quadrants data');
-            var tmp=[];
-            for(var i = 0; i  < data.systems.length;i++){
-                data.systems[i].System.x = parseInt(data.systems[i].System.x);
-                data.systems[i].System.y = parseInt(data.systems[i].System.y);
-                data.systems[i].System.age = parseInt(data.systems[i].System.age);
-                data.systems[i].System.Planet = data.systems[i].Planet;
-                tmp.push(data.systems[i].System);
-
-            }
-            self.requestSystemsDone(tmp, self.app.nebulae.changeData);
+            console.log('retrive systems', data);
+            // var tmp=[];
+            // _.map(data, )
+            // for(var i = 0; i  < data.systems.length;i++){
+            //     data.systems[i].System.x = parseInt(data.systems[i].System.x);
+            //     data.systems[i].System.y = parseInt(data.systems[i].System.y);
+            //     data.systems[i].System.age = parseInt(data.systems[i].System.age);
+            //     data.systems[i].System.Planet = data.systems[i].Planet;
+            //     tmp.push(data.systems[i].System);
+            //
+            // }
+            self.requestSystemsDone(data, self.app.nebulae.changeData);
         })
         .fail(function(data){
             console.log('Internal Server Error');
@@ -2676,14 +2680,15 @@ SystemMap.prototype.requestSystems = function(galaxyID){
 
 SystemMap.prototype.requestSystemsDone = function(data,callback){
 
-    for (var d, i = 0; i < data.length; i++) {
-        d = data[i];
-        // d.age = d.age || Math.random();
-        //console.log(d.Planet);
-        d.age = Math.random();
-        var dd = this.createSystemData(d.id, d.x, d.y, d.name, d.age, d.Planet, d.image_url, d.photo, d.description);
-
-    }
+    _.forEach(data, (d) => this.createSystemData(d.id, d.x, d.y, d.name, d.age, d.planetAmount, d.imagePath, d.photo, d.description))
+    // for (var d, i = 0; i < data.length; i++) {
+    //     d = data[i];
+    //     // d.age = d.age || Math.random();
+    //     //console.log(d.Planet);
+    //     d.age = Math.random();
+    //     var dd = this.createSystemData(d.id, d.x, d.y, d.name, d.age, d.Planet, d.image_url, d.photo, d.description);
+    //
+    // }
 
     this.createSystems(this.systemData);
     if (typeof callback === "function") {
@@ -3061,6 +3066,7 @@ GalaxyMap.prototype.initHandlers = function(el){
 
 GalaxyMap.prototype.enterGalaxy = function(el){
     app.activeGalaxyID = el.attr('data-id');
+    console.warn(app.activeGalaxyID);
   $(document.body).trigger('enterGalaxy');
 };
 
@@ -3127,19 +3133,10 @@ GalaxyMap.prototype.requestData = function(callback){
 };
 
 GalaxyMap.prototype.requestDataDone = function(data){
-    console.warn('GalaxyMap request data done');
     _.forEach(data, (d) => {
       const age = Math.random() * .5;
-      console.warn(d.id, d.quadrantId, d.x, d.y, d.name, d.description || '', age, d.imagePath, d.photo, d.active);
       this.createGalaxyData(d.id, d.quadrantId, d.x, d.y, d.name, d.description || '', age, d.imagePath, d.photo, d.active)
     })
-    // for (var d, i = 0; i < data.length; i++) {
-    //     console.warn('fk', d, d.x, d.y)
-    //     d = data[i];
-    //     // d.age = d.age || Math.random();
-    //     d.age = Math.random() * .5;
-    //     var dd = this.createGalaxyData(d.id, d.quadrantId, d.x, d.y, d.name,d.description, d.age, d.image_url, d.photo, d.active);
-    // }
 };
 
 GalaxyMap.prototype.requestStarsFail = function(data){
@@ -3172,7 +3169,6 @@ GalaxyMap.prototype.createPlaceholderStars = function(){
 GalaxyMap.prototype.createGalaxyData = function(id, qid, x, y, name, text, age, url, cs, active) { // url: image_url; cs: image file name
     // var nebula = this.app.nebulae.nebulae[qid - 1];
     var nebula = _.find(this.app.nebulae.nebulae, (i) => i.id === qid); // find quadrant
-    console.warn('nebula: ',  nebula);
     var nx = nebula.x + x;
     var ny = nebula.y - y;
     var p = this.app.tileMap.translateMapToPage({ x: nx, y: ny });
