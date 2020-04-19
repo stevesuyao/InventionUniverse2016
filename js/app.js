@@ -3130,8 +3130,8 @@ GalaxyMap.prototype.requestDataDone = function(data){
     console.warn('GalaxyMap request data done');
     _.forEach(data, (d) => {
       const age = Math.random() * .5;
-      console.warn(d.id, d.quadrantId, d.x, d.y, d.name, d.description || '', age, d.image_url, d.photo, d.active);
-      this.createGalaxyData(d.id, d.quadrantId, d.x, d.y, d.name, d.description || '', age, d.image_url, d.photo, d.active)
+      console.warn(d.id, d.quadrantId, d.x, d.y, d.name, d.description || '', age, d.imagePath, d.photo, d.active);
+      this.createGalaxyData(d.id, d.quadrantId, d.x, d.y, d.name, d.description || '', age, d.imagePath, d.photo, d.active)
     })
     // for (var d, i = 0; i < data.length; i++) {
     //     console.warn('fk', d, d.x, d.y)
@@ -3157,7 +3157,6 @@ GalaxyMap.prototype.createPlaceholderStars = function(){
 
     var h = this.app.tileMap.$inner.height();
     var w = this.app.tileMap.$inner.width();
-    console.warn('w what?', w);
 
     for (var i = 0; i < totalStars; i++) {
         var name = btoa(('' + Math.random()).substring(2, 8));
