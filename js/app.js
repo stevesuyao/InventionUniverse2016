@@ -5,6 +5,8 @@ var app,
         quadrantService: 'https://byr7m3hqxg.execute-api.us-east-1.amazonaws.com/qa',
         galaxyService: 'https://2fol67t42e.execute-api.us-east-1.amazonaws.com/qa',
         systemService: 'https://jptk09kqp5.execute-api.us-east-1.amazonaws.com/qa',
+        testPublicApi: 'https://nrewrib3me.execute-api.us-east-1.amazonaws.com/qa/hiAll',
+        testPrivateApi: 'https://nrewrib3me.execute-api.us-east-1.amazonaws.com/qa/hiUsers',
         pagination: 1,
         initialBatchCount: 200,
         dataCount: 500,
@@ -64,6 +66,9 @@ var app,
         eps: 0.5,
 
         constraints1 :{
+            username: {
+              presence: true,
+            },
             email: {
               // Email is required
               presence: true,
@@ -248,6 +253,82 @@ testSkillsData = [ {'id':1, 'planet_id':1, 'name': 'blender', 'type':'3D Deisng'
 testUserData = [  {'id':1, 'website':'stevesuyao.com', 'avatar':'../img/avatars/a1.png', 'name': 'Steve', 'email':'stevesuyao@gmail.com', 'hometown': 'Beijing', 'school':'NEU', 'hobbies':'soccer','heros':'optimus prime', 'interests':'web development', 'goal':'world peace'},
                   {'id':2, 'website':'build-it-yourself.com', 'avatar':'../img/avatars/a2.png', 'name': 'John', 'email':'', 'hometown': 'Boston', 'school':'', 'hobbies':'','heros':'', 'interests':'', 'goal':''}
                 ];
+
+var awsConfig = {
+  // s3: {
+  //   REGION: "YOUR_S3_UPLOADS_BUCKET_REGION",
+  //   BUCKET: "YOUR_S3_UPLOADS_BUCKET_NAME"
+  // },
+  // apiGateway: {
+  //   REGION: "YOUR_API_GATEWAY_REGION",
+  //   URL: "YOUR_API_GATEWAY_URL"
+  // },
+  cognito: {
+    REGION: "us-east-1",
+    USER_POOL_ID: "us-east-1_qXTHPEn9s",
+    APP_CLIENT_ID: "4s9lg7786d2ebm66r67c24mp26",
+    // IDENTITY_POOL_ID: "YOUR_IDENTITY_POOL_ID"
+  }
+};
+
+// Configure aws amplify
+Amplify.configure({
+  Auth: {
+    mandatorySignIn: true,
+    region: awsConfig.cognito.REGION,
+    userPoolId: awsConfig.cognito.USER_POOL_ID,
+    // identityPoolId: awsConfig.cognito.IDENTITY_POOL_ID,
+    userPoolWebClientId: awsConfig.cognito.APP_CLIENT_ID
+  },
+  // Storage: {
+  //   region: config.s3.REGION,
+  //   bucket: config.s3.BUCKET,
+  //   identityPoolId: config.cognito.IDENTITY_POOL_ID
+  // },
+  // API: {
+  //   endpoints: [
+  //     {
+  //       name: "notes",
+  //       endpoint: config.apiGateway.URL,
+  //       region: config.apiGateway.REGION
+  //     },
+  //   ]
+  // }
+});
+// console.log(Object.keys(AWSAmplify), Amplify.configure);
+
+
+// Auth.signUp({
+// 	username: 'test3',
+// 	password: '123456',
+//   // attributes: {
+//   //   email:'test2@gmail.com',
+//   //   // other custom attributes
+//   // },
+// }).then(success => console.log('successful sign up', success))
+//   .catch(err => console.log(err));
+
+// Auth.signIn('steve2', '123456')
+// 	.then(success => console.log('successful sign in', success))
+// 	.catch(err => console.log(err));
+
+// Test public api
+$.ajax(appConfig.testPublicApi)
+    .done(function(data){
+      console.log('test public api', data);
+    })
+    .fail(function(data){
+        console.log('test public api fail', data);
+    });
+
+// Test private api
+$.ajax(appConfig.testPrivateApi)
+    .done(function(data){
+      console.log('test private api', data);
+    })
+    .fail(function(data){
+        console.log('test public api fail', data);
+    });
 
 $(function(){
     app = new App(appConfig);
@@ -510,8 +591,9 @@ App.prototype.cancelMapAnimation = function(){
 
 App.prototype.go = function(n){
     var self = this;
+    console.warn('go', n);
 
-    if (n == 'navigating') {
+    if (n === 'navigating') {
         setTimeout(function(){
             showHover = true;
         }, 1200);
@@ -687,34 +769,53 @@ App.prototype.login =  function(a,b,callback){  // a, b are dom id text
      var self = this;
      var username = $("#"+a).val();
      var password = $("#"+b).val();
-     var h = self.make_base_auth(username, password);
-     $.ajax( {
-        url: self.config.apiUrl +　self.config.REST.LOGIN,
-        type: 'POST',
 
-       beforeSend: function (xhr){
-           xhr.setRequestHeader('Authorization', h);
-        },
+     Auth.signIn(username, password)
+     	.then(success => {
+        console.log('successful sign in', success);
+        const { username, attributes} = success;
+        const { sub, email } = attributes;
+        self.user = { username, sub, email };
+        console.log('app user', self.user);
+        // TODO: find user planet by sub(uid)
+        // self.miniMap.decoMarker(self.user.Planet);
+        self.message = "You have logged in successfully!";
+        callback();
+      })
+     	.catch(err => {
+        self.user = null;
+        console.log(err);
+        callback();
+      });
 
-        success: function( data) {
-          console.log(data);
-          if(data.message.user) {
-            self.user = data.message.user;
-            self.miniMap.decoMarker(self.user.Planet);
-
-          }
-          self.message = data.message.text;
-          if (typeof callback === "function") {
-              callback();
-          }
-            //console.log(data);
-        },
-        error: function(status){
-          //To-do: add server error warning!
-
-          console.log('Server Error');
-        }
-    });
+    //  var h = self.make_base_auth(username, password);
+    //  $.ajax( {
+    //     url: self.config.apiUrl +　self.config.REST.LOGIN,
+    //     type: 'POST',
+    //
+    //    beforeSend: function (xhr){
+    //        xhr.setRequestHeader('Authorization', h);
+    //     },
+    //
+    //     success: function( data) {
+    //       console.log(data);
+    //       if(data.message.user) {
+    //         self.user = data.message.user;
+    //         self.miniMap.decoMarker(self.user.Planet);
+    //
+    //       }
+    //       self.message = data.message.text;
+    //       if (typeof callback === "function") {
+    //           callback();
+    //       }
+    //         //console.log(data);
+    //     },
+    //     error: function(status){
+    //       //To-do: add server error warning!
+    //
+    //       console.log('Server Error');
+    //     }
+    // });
 };
 
 App.prototype.refreshLogin = function(a,b,callback){
@@ -754,113 +855,144 @@ App.prototype.refreshLogin = function(a,b,callback){
 
 App.prototype.logout = function(callback){
     var self = this;
+    self.user = null;
+    self.message = "You have logged out successfully.";
+    callback();
 
-    $.ajax( {
-          url: self.config.apiUrl +　self.config.REST.LOGOUT,
-          success: function( data) {
-            self.user = null;
-            self.message = data.message.text;
-            if (typeof callback === "function") {
-              callback();
-            }
-            console.log(data);
-          },
-          error: function(status){
-
-            console.log('Server Error');
-          }
-      });
+    // $.ajax( {
+    //       url: self.config.apiUrl +　self.config.REST.LOGOUT,
+    //       success: function( data) {
+    //         self.user = null;
+    //         self.message = data.message.text;
+    //         if (typeof callback === "function") {
+    //           callback();
+    //         }
+    //         console.log(data);
+    //       },
+    //       error: function(status){
+    //
+    //         console.log('Server Error');
+    //       }
+    //   });
 
 };
 
-App.prototype.signup = function(a,b,callback){
+App.prototype.signup = function(a,b,c,callback){
      var self = this;
      var username = $("#" + a).val();
-       var password = $("#" + b).val();
-       var _data = {};
-       _data.User = {};
-       _data.User.username = username;
-       _data.User.password = password;
-       _data.User.role = 'author'; // to-do: add admin page
+     var email = $("#" + b).val();
+     var password = $("#" + c).val();
+     var _data = {
+       User: {
+         username,
+         email,
+         password,
+       }
+     };
 
-      $.ajax( {
-          url: self.config.apiUrl +　self.config.REST.SIGNUP,
-          type: 'POST',
-          data:_data,
+       console.warn('signup data', _data);
 
-          success: function( data) {
-              console.log(data);
-              self.message = data.message.text;
-              if (typeof callback === "function" ) {
-                if(data.message.type === 'success') {
-                  callback(true);
-                  self.hasSignup = true;
-                }
-                else callback(false);
-              }
-          },
-          error: function(status){
+     Auth.signUp({
+     	username,
+     	password,
+      attributes: {
+        email,
+       // other custom attributes
+      },
+     }).then(success => {
+         self.message = "You have signed up successfully!";
+         self.hasSignup = true;
+         if (typeof callback === "function" ) callback(true);
+         console.log('successful sign up', success);
+       })
+       .catch(err => {
+         self.message = err.message;
+         if (typeof callback === "function" ) callback(false);
+         console.log(err)
+       });
 
-            console.log(status);
-          }
-      });
+      // $.ajax( {
+      //     url: self.config.apiUrl +　self.config.REST.SIGNUP,
+      //     type: 'POST',
+      //     data:_data,
+      //
+      //     success: function( data) {
+      //         console.log(data);
+      //         self.message = data.message.text;
+      //         if (typeof callback === "function" ) {
+      //           if(data.message.type === 'success') {
+      //             callback(true);
+      //             self.hasSignup = true;
+      //           }
+      //           else callback(false);
+      //         }
+      //     },
+      //     error: function(status){
+      //
+      //       console.log(status);
+      //     }
+      // });
 
 };
 
-App.prototype.createPlanet = function($form,system_id, planet_edge,callback){
+App.prototype.createPlanet = function($form, system_id, planet_edge, callback){
   var self = this;
   //var fe = $( "#" + form_id )[0];
   var fe = $form[0];
   var fd = new FormData(fe);
   fd.append("data[Planet][system_id]",system_id);
   fd.append("data[Planet][planet_edge]",planet_edge);
+  // Display the key/value pairs
+for(var pair of fd.entries()) {
+   console.log(pair[0]+ ', '+ pair[1]);
+}
 
-  self.screenStarCreation.$elem.addClass('state-loading');
+  // self.screenStarCreation.$elem.addClass('state-loading');
 
-  $.ajax({
-    url: self.config.apiUrl +　self.config.REST.ADDPLANETS,
-    type: "POST",
-    data: fd,
-    processData: false,  // tell jQuery not to process the data
-    contentType: false,   // tell jQuery not to set contentType
-    beforeSend: function(){
-    $('#preloader').addClass('active');
-    },
-    success: function(data){
-            console.log(data);
-            if (typeof callback === "function" ) {
-                if(data.message.type === 'success') {
-                  self.message = data.message.text;
-                  self.currentPlanet = data.message.planet.Planet;
-                  self.user.Planet = data.message.planet.Planet;
-                  callback(true);
-                }
-                else {
-                  if(data.message.text.user_id) self.message = "You can only have one planet." ;
-                  else if(data.message.text.name) self.message = "Please name your planet first.";
-                  else if(data.message.text.photo) self.message = "Please choose a photo, jpg/png format only and the size should not be larger than 2MB."
-                  callback(false);
-
-                }
-              }
-
-    },
-    error: function(status){
-          console.log(status);
-    },
-    complete: function(){
-      $('#preloader').removeClass('active');
-      console.log('complete');
-      self.screenStarCreation.$elem.removeClass('state-loading');
-      barLoading($('#create-planet-bar'), 0);
-    }
-  }).uploadProgress(function(e){
-          if (e.lengthComputable) {
-          var percentage = Math.round((e.loaded * 100) / e.total);
-          barLoading($('#create-planet-bar'), percentage);
-        }
-
-    });
+  // $.ajax({
+  //   url: self.config.apiUrl +　self.config.REST.ADDPLANETS,
+  //   type: "POST",
+  //   data: fd,
+  //   processData: false,  // tell jQuery not to process the data
+  //   contentType: false,   // tell jQuery not to set contentType
+  //   beforeSend: function(){
+  //   $('#preloader').addClass('active');
+  //   },
+  //   success: function(data){
+  //           console.log(data);
+  //           if (typeof callback === "function" ) {
+  //               if(data.message.type === 'success') {
+  //                 self.message = data.message.text;
+  //                 self.currentPlanet = data.message.planet.Planet;
+  //                 self.user.Planet = data.message.planet.Planet;
+  //                 callback(true);
+  //               }
+  //               else {
+  //                 if(data.message.text.user_id) self.message = "You can only have one planet." ;
+  //                 else if(data.message.text.name) self.message = "Please name your planet first.";
+  //                 else if(data.message.text.photo) self.message = "Please choose a photo, jpg/png format only and the size should not be larger than 2MB."
+  //                 callback(false);
+  //
+  //               }
+  //             }
+  //
+  //   },
+  //   error: function(status){
+  //         console.log(status);
+  //   },
+  //   complete: function(){
+  //     $('#preloader').removeClass('active');
+  //     console.log('complete');
+  //     self.screenStarCreation.$elem.removeClass('state-loading');
+  //     barLoading($('#create-planet-bar'), 0);
+  //   }
+  // }).uploadProgress(function(e){
+  //         if (e.lengthComputable) {
+  //         var percentage = Math.round((e.loaded * 100) / e.total);
+  //         barLoading($('#create-planet-bar'), percentage);
+  //       }
+  //
+  //   });
 
 };
 
@@ -873,8 +1005,8 @@ App.prototype.serverError = function(){
 
 App.prototype.loginMessage = function(dom1,dom2){
       if(!this.user){
-      //$('#error-login').text('invalid username or password, please try again');
-         $(document.body).removeClass('loggedin');
+       $('#error-login').text('invalid username or password, please try again');
+       $(document.body).removeClass('loggedin');
        if(dom2) dom2.val('');
         $('#user-welcome').text("");
         $('#username').val('');
@@ -895,6 +1027,7 @@ App.prototype.loginMessage = function(dom1,dom2){
 };
 
 App.prototype.signupMessage = function(dom,b){
+     console.warn('signupMesage')
      if(b) {
         $(document.body).removeClass('signup');
         if(this.screenMessage){
@@ -917,8 +1050,9 @@ App.prototype.handleFormSubmit = function(form,input,constraints){
     //console.log(errors);
     // then we update the form to reflect the results
     self.menu.showErrors(form, errors || {});
+    console.warn('input', input);
     if (!errors) {
-      self.signup('email','new-password',function(b){self.signupMessage($('#email-error'),b)});
+      self.signup('signup-username', 'email','new-password',function(b){self.signupMessage($('#error-signup'),b)});
     }
 };
 
@@ -1569,12 +1703,13 @@ ScreenMessage.prototype.enterScreen = function(){
      this.$elem.show();
      this.$elem.addClass('screen-active');
       setTimeout(function(){
-        self.leaveScreen();
+      self.leaveScreen();
     }, 2000);
 };
 
 ScreenMessage.prototype.leaveScreen = function(){
     this.$elem.removeClass('screen-active');
+    this.app.message = '';
     this.$elem.hide();
 };
 
@@ -2502,12 +2637,12 @@ MiniMap.prototype.addMarker = function(x, y, id) {
     $marker = $('<div class="mini-map-marker"></div>');
     $marker.attr('data-pos',id);
     $marker.css({ left: x * this.xScale, top: y * this.yScale });
-    if(this.app.user) {
+    if(this.app.user && this.app.user.planet) {
 
-      if(this.app.universe === 'qudrant' && id === this.app.user.Planet.qudrant_id) {
+      if(this.app.universe === 'qudrant' && id === this.app.user.planet.qudrant_id) {
         $marker.addClass('here');
       }
-      if(this.app.universe === 'galaxy' && id === this.app.user.Planet.system_id){
+      if(this.app.universe === 'galaxy' && id === this.app.user.planet.system_id){
         $marker.addClass('here');
       }
     }
@@ -2831,7 +2966,6 @@ SystemMap.prototype.initPlanetHandlers = function(){
         e.stopPropagation(); // stops the event from bubbling up the event chain. we have touchstart event on app.control
 
         self.activePlanet = $(this); // save the clicked dom element
-        console.log(this);
         //self.app.screenPlanet.saveTileCenter();
         self.$galaxy.addClass('clickOnPlanet'); // pause planet animation
 
@@ -2861,7 +2995,7 @@ SystemMap.prototype.initPlanetHandlers = function(){
                 return;
               }
 
-            if(self.app.user.Planet.id !== null){  // each user can only have one planet!
+            if(self.app.user.planet && self.app.user.planet.id !== null){  // each user can only have one planet!
                //self.app.message = 'You can only have one planet.';
                self.app.screenMessage.changeMessage('You can only have one planet.');
                self.app.screenMessage.enterScreen();
@@ -2869,9 +3003,10 @@ SystemMap.prototype.initPlanetHandlers = function(){
                return;
             }
 
-            //$(document.body).addClass('editMode');
+            // $(document.body).addClass('editMode');
             self.app.system_id = parseInt($(this).parents('.solar-system').attr('data-id')); // get systemid
             self.app.planet_edge = parseInt($(this).attr('data-edge')); // get planet_edge
+            console.warn(cx, cy);
             self.handlePlanetCreation(cx,cy,app.halfWinW,app.halfWinH);  //center the planet
             $('.menu-right').addClass('hide');
 

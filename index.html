@@ -169,7 +169,7 @@
                     <input type="hidden" name="y" id="y"> -->
                     <input  maxlength="32" type="text"  name="data[Planet][name]" id="PlanetName" class="serif" autocomplete="off">
                     <label for="photo">upload photo for your planet</label>
-
+                    <!-- TODO: https://stackoverflow.com/questions/572768/styling-an-input-type-file-button -->
                     <input type="file" id="PlanetPhoto" name="data[Planet][photo]" class="serif" accept="image/png, image/jpeg, image/gif"  value="photo">
                     <input type="hidden" name="data[Planet][image_url]" value="" id="PlanetImageUrl">
                     <p>
@@ -211,7 +211,7 @@
 
         <section class="screen screen-message">
             <div class="content">
-                <div class='app-message'><h1 id="app-message">Sucess</h1></div>
+                <div class='app-message'><h1 id="app-message">Success.</h1></div>
             </div>
         </section>
 
@@ -309,7 +309,11 @@
                 <div class="menu-left-screen">
                     <a class="btn-toggle" href="#"></a>
                     <form id='signup'>
-                        <div class='form-group input username'>Email
+                        <div class='form-group input username'>Username
+                            <input type='text' id="signup-username" name='username'></input>
+                            <div class='messages' id='username-error'></div>
+                        </div>
+                        <div class='form-group input email'>Email
                             <input type='text' id="email" name='email'></input>
                             <div class='messages' id='email-error'></div>
                         </div>
@@ -321,9 +325,9 @@
                             <input type='password' id="confirm-password" name='confirm-password'></input>
                             <div class='messages'></div>
                         </div>
+                        <div class="messages" id='error-signup'></div>
                         <input type="submit" class="btn btn-create" value="submit">
                     </form>
-                    <div class="messages" id='error-login'></div>
                 </div>
                 <div class='menu-left-bar'></div>
             </nav>
@@ -407,7 +411,7 @@
                                         <option value="Other">
                                     </datalist>
                                     <span><input  class='balloon' id="skill-name" name='data[Skill][name]' type="text" placeholder="skill-name" ><label for="skill-name">Name</label></span>
-                                    <span><input  class='balloon' id="skill-star" name='data[Skill][level]' type="text" placeholder="1-5" ><label for="skill-star"">Level</label></span>
+                                    <span><input  class='balloon' id="skill-star" name='data[Skill][level]' type="text" placeholder="1-5" ><label for="skill-star">Level</label></span>
                                     <span class='btn btn-addSkill'>&#8194</span>
                                 </form>
                                 <span id='skillerror'></span>
@@ -588,7 +592,6 @@
         </div> -->
     </div>
 
-
     <script src="./js/libs/jquery.min.js"></script>
     <script src="./js/libs/lodash.min.js"></script>
     <script src="./js/libs/jquery.parallax.min.js"></script>
@@ -598,8 +601,20 @@
     <script src='./js/libs/jquery.rateyo.min.js'></script>
     <script src='./js/libs/validate.min.js'></script>
     <script src='./js/libs/underscore-min.js'></script>
-    <script src="./js/app.js"></script>
     <script src="./js/libs/canvas.js"></script>
     <script src="./js/libs/l-by-l.min.js"></script>
+    <script>var exports = {};</script>
+    <!-- <script src="https://unpkg.com/aws-amplify@3.0.10/dist/aws-amplify.min.js"></script> -->
+    <script src="./js/libs/aws-amplify.min.js"></script>
+    <script>
+
+        var AWSAmplify = exports['aws_amplify'];
+
+        var { Auth, Amplify } = AWSAmplify;
+        //
+        // console.log(AWSAmplify, Auth);
+
+    </script>
+    <script src="./js/app.js"></script>
 
 </body></html>
