@@ -5,8 +5,8 @@ var app,
         quadrantService: 'https://ecz73r3o6f.execute-api.us-east-2.amazonaws.com/qa',
         galaxyService: 'https://pkdq61lro8.execute-api.us-east-2.amazonaws.com/qa',
         systemService: 'https://n36y1uokza.execute-api.us-east-2.amazonaws.com/qa',
-        testPublicApi: 'https://nrewrib3me.execute-api.us-east-1.amazonaws.com/qa/hiAll',
-        testPrivateApi: 'https://nrewrib3me.execute-api.us-east-1.amazonaws.com/qa/hiUsers',
+        testPublicApi: 'https://7ht0z3aop2.execute-api.us-east-2.amazonaws.com/qa/hiAll',
+        testPrivateApi: 'https://7ht0z3aop2.execute-api.us-east-2.amazonaws.com/qa/hiUsers',
         pagination: 1,
         initialBatchCount: 200,
         dataCount: 500,
@@ -265,8 +265,8 @@ var awsConfig = {
   // },
   cognito: {
     REGION: "us-east-1",
-    USER_POOL_ID: "us-east-1_qXTHPEn9s",
-    APP_CLIENT_ID: "4s9lg7786d2ebm66r67c24mp26",
+    USER_POOL_ID: "us-east-2_HgD5P3AaZ",
+    APP_CLIENT_ID: "6pa3jicbvnpl3ktonp50r2j3g0",
     // IDENTITY_POOL_ID: "YOUR_IDENTITY_POOL_ID"
   }
 };
