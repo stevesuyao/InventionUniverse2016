@@ -1,10 +1,10 @@
 
 var app,
     appConfig = {
-        apiUrl: 'https://byr7m3hqxg.execute-api.us-east-1.amazonaws.com/qa',  //server ip address
-        quadrantService: 'https://byr7m3hqxg.execute-api.us-east-1.amazonaws.com/qa',
-        galaxyService: 'https://2fol67t42e.execute-api.us-east-1.amazonaws.com/qa',
-        systemService: 'https://jptk09kqp5.execute-api.us-east-1.amazonaws.com/qa',
+        apiUrl: 'https://ecz73r3o6f.execute-api.us-east-2.amazonaws.com/qa',  //server ip address
+        quadrantService: 'https://ecz73r3o6f.execute-api.us-east-2.amazonaws.com/qa',
+        galaxyService: 'https://pkdq61lro8.execute-api.us-east-2.amazonaws.com/qa',
+        systemService: 'https://n36y1uokza.execute-api.us-east-2.amazonaws.com/qa',
         testPublicApi: 'https://nrewrib3me.execute-api.us-east-1.amazonaws.com/qa/hiAll',
         testPrivateApi: 'https://nrewrib3me.execute-api.us-east-1.amazonaws.com/qa/hiUsers',
         pagination: 1,
@@ -3268,8 +3268,9 @@ GalaxyMap.prototype.requestData = function(callback){
 };
 
 GalaxyMap.prototype.requestDataDone = function(data){
-    _.forEach(data, (d) => {
-      const age = Math.random() * .5;
+  const activeGalaxy = _.filter(data, (g) => g.active);
+    _.forEach(activeGalaxy, (d) => {
+      const age = d.age > 1 || d.age < 0 ? Math.random() * .5 : d.age;
       this.createGalaxyData(d.id, d.quadrantId, d.x, d.y, d.name, d.description || '', age, d.imagePath, d.photo, d.active)
     })
 };
@@ -3282,24 +3283,24 @@ GalaxyMap.prototype.requestStarsFail = function(data){
     //this.clearStarLoadingTimer();
 };
 
-GalaxyMap.prototype.createPlaceholderStars = function(){
-    var totalTiles = this.app.tileMap.cols * this.app.tileMap.rows;
-    var starsPerTile = 8;
-    var totalStars = totalTiles * starsPerTile;
-
-    var h = this.app.tileMap.$inner.height();
-    var w = this.app.tileMap.$inner.width();
-
-    for (var i = 0; i < totalStars; i++) {
-        var name = btoa(('' + Math.random()).substring(2, 8));
-        var age = Math.random();
-
-        var x = Math.floor(Math.random() * w);
-        var y = Math.floor(Math.random() * h);
-
-        this.createGalaxyData(i, x, y, name, age);
-    }
-};
+// GalaxyMap.prototype.createPlaceholderStars = function(){
+//     var totalTiles = this.app.tileMap.cols * this.app.tileMap.rows;
+//     var starsPerTile = 8;
+//     var totalStars = totalTiles * starsPerTile;
+//
+//     var h = this.app.tileMap.$inner.height();
+//     var w = this.app.tileMap.$inner.width();
+//
+//     for (var i = 0; i < totalStars; i++) {
+//         var name = btoa(('' + Math.random()).substring(2, 8));
+//         var age = Math.random();
+//
+//         var x = Math.floor(Math.random() * w);
+//         var y = Math.floor(Math.random() * h);
+//
+//         this.createGalaxyData(i, x, y, name, age);
+//     }
+// };
 
 GalaxyMap.prototype.createGalaxyData = function(id, qid, x, y, name, text, age, url, cs, active) { // url: image_url; cs: image file name
     // var nebula = this.app.nebulae.nebulae[qid - 1];
@@ -3327,7 +3328,7 @@ GalaxyMap.prototype.createGalaxyData = function(id, qid, x, y, name, text, age, 
 
         this.galaxyLookup[id] = { r: tileData.r, c: tileData.c, i: (tileData.stars.length - 1) };
 
-        return galaxyData;
+        // return galaxyData;
     }
 };
 
@@ -3385,7 +3386,7 @@ GalaxyMap.prototype.createGalaxyElem = function(data) {
 
 GalaxyMap.prototype.getAgeCategory = function(age) {
 
-    var fl = Math.floor((1 - age) * 3);
+    var fl = Math.floor(age * 6);
    // console.log(age + ':' + fl);
     return Math.max(fl, 0);
 };
