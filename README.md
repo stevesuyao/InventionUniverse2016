@@ -1,4 +1,4 @@
-# InventionUniverse2016
+﻿# InventionUniverse2016
 ## Download
 Clone this repo or download the zip file to your local machine or a web server.
 
@@ -145,6 +145,8 @@ https://github.com/stevesuyao/InventionUniverse2016/wiki/Frontend-Wiki
 (There will be more references on the wiki pages in the future.)
 
 ## Team Members
+
+Jesus Librado
 
 ## Team Workflow
 
